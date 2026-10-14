@@ -1,6 +1,9 @@
 const USER_KEY = 'local_user';
 const STUDENTS_KEY = 'local_students';
 const QUESTIONS_KEY = 'local_wrong_questions';
+const GENERATED_QUESTIONS_KEY = 'local_generated_questions';
+const PRACTICE_RECORDS_KEY = 'local_practice_records';
+const TASKS_KEY = 'local_tasks';
 
 function getUser() {
   return wx.getStorageSync(USER_KEY) || null;
@@ -29,6 +32,24 @@ function saveQuestions(questions) {
   return questions;
 }
 
+function getGeneratedQuestions() {
+  return wx.getStorageSync(GENERATED_QUESTIONS_KEY) || [];
+}
+
+function saveGeneratedQuestions(questions) {
+  wx.setStorageSync(GENERATED_QUESTIONS_KEY, questions);
+  return questions;
+}
+
+function getPracticeRecords() {
+  return wx.getStorageSync(PRACTICE_RECORDS_KEY) || [];
+}
+
+function savePracticeRecords(records) {
+  wx.setStorageSync(PRACTICE_RECORDS_KEY, records);
+  return records;
+}
+
 function makeId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -52,6 +73,12 @@ module.exports = {
   saveStudents,
   getQuestions,
   saveQuestions,
+  getGeneratedQuestions,
+  saveGeneratedQuestions,
+  getPracticeRecords,
+  savePracticeRecords,
+  getTasks: () => wx.getStorageSync(TASKS_KEY) || [],
+  saveTasks: (tasks) => wx.setStorageSync(TASKS_KEY, tasks),
   makeId,
   ensureUser
 };

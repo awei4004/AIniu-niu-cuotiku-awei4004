@@ -4,7 +4,6 @@
   "private": true,
   "main": "index.js",
   "dependencies": {
-    "primary-wrong-question-library": "file:../..",
     "wx-server-sdk": "4.0.2"
   }
 }

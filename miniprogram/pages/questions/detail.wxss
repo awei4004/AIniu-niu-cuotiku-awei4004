@@ -69,6 +69,10 @@
   font-size: 24rpx;
 }
 
+.generate-button {
+  margin-top: 28rpx;
+}
+
 .detail-section {
   margin-top: 32rpx;
   padding-top: 28rpx;

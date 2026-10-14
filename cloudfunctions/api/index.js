@@ -1,8 +1,11 @@
 const cloud = require('wx-server-sdk');
+const domain = require('./practice-domain');
+const aiAdapter = require('./ai-adapter');
+const crypto = require('crypto');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
-const db = cloud.database();
+const db = cloud.database({ throwOnNotFound: false });
 const _ = db.command;
 
 exports.main = async (event = {}) => {
@@ -46,6 +49,28 @@ async function dispatch(action, data, user) {
       return updateQuestion(user, data);
     case 'question.delete':
       return deleteQuestion(user, data);
+    case 'generation.create':
+      return createGeneration(user, data);
+    case 'generation.list':
+      return listGenerations(user, data);
+    case 'generation.update':
+      return updateGeneration(user, data);
+    case 'generation.confirm':
+      return confirmGeneration(user, data);
+    case 'generation.delete':
+      return deleteGeneration(user, data);
+    case 'practice.list':
+      return listPracticeQuestions(user, data);
+    case 'practice.start':
+      return startPractice(user, data);
+    case 'practice.submit':
+      return submitPractice(user, data);
+    case 'practice.records':
+      return listPracticeRecords(user, data);
+    case 'practice.detail':
+      return getOwnedRecord(user, data.recordId);
+    case 'practice.grade':
+      return gradePractice(user, data);
     default:
       throw makeError('NOT_FOUND', '暂不支持该操作');
   }
@@ -65,7 +90,7 @@ async function ensureUser(openid) {
       updatedAt: now
     }
   });
-  return Object.assign({ _id: created._id }, created.data || {});
+  return Object.assign({ _id: created._id }, { openid, currentStudentId: '', role: 'parent', createdAt: now });
 }
 
 async function bootstrap(user) {
@@ -130,8 +155,12 @@ async function deleteStudent(user, data) {
   const related = await db.collection('wrong_questions')
     .where({ ownerId: user._id, studentId: student._id, deletedAt: _.exists(false) })
     .count();
-  if (related.total > 0) {
-    throw makeError('HAS_RELATED_DATA', '该学生已经有错题，暂时不能删除');
+  const generated = await db.collection('generated_questions')
+    .where({ ownerId: user._id, studentId: student._id, status: _.neq('deleted') }).count();
+  const records = await db.collection('practice_records')
+    .where({ ownerId: user._id, studentId: student._id }).count();
+  if (related.total > 0 || generated.total > 0 || records.total > 0) {
+    throw makeError('HAS_RELATED_DATA', '该学生已有错题或复习记录，暂时不能删除');
   }
   await db.collection('students').doc(student._id).remove();
   if (user.currentStudentId === student._id) {
@@ -156,12 +185,14 @@ async function createQuestion(user, data) {
   const created = await db.collection('wrong_questions').add({
     data: Object.assign({}, fields, {
       ownerId: user._id,
+      version: 1,
       createdAt: now,
       updatedAt: now
     })
   });
   return Object.assign({ _id: created._id }, fields, {
     ownerId: user._id,
+    version: 1,
     createdAt: now,
     updatedAt: now
   });
@@ -186,10 +217,13 @@ async function updateQuestion(user, data) {
   const current = await getOwnedQuestion(user, data.questionId);
   const fields = await validateQuestion(user, data);
   const now = new Date();
+  const contentChanged = ['studentId', 'subject', 'questionText', 'correctAnswer', 'analysis',
+    'knowledgePoints', 'difficulty', 'questionType'].some((key) => current[key] !== fields[key]);
+  const version = (current.version || 1) + (contentChanged ? 1 : 0);
   await db.collection('wrong_questions').doc(current._id).update({
-    data: Object.assign({}, fields, { updatedAt: now })
+    data: Object.assign({}, fields, { updatedAt: now, version })
   });
-  return Object.assign({}, current, fields, { updatedAt: now });
+  return Object.assign({}, current, fields, { updatedAt: now, version });
 }
 
 async function deleteQuestion(user, data) {
@@ -199,6 +233,160 @@ async function deleteQuestion(user, data) {
     data: { deletedAt: now, updatedAt: now }
   });
   return { deleted: true };
+}
+
+async function createGeneration(user, data) {
+  const source = await getOwnedQuestion(user, data.sourceQuestionId);
+  const options = domain.generationOptions(Object.assign({ difficulty: source.difficulty }, data));
+  const now = new Date();
+  const task = await db.collection('tasks').add({ data: {
+    ownerId: user._id, studentId: source.studentId, sourceQuestionId: source._id,
+    sourceVersion: domain.sourceVersion(source), type: 'generation', provider: aiAdapter.provider,
+    status: 'running', createdAt: now, updatedAt: now
+  } });
+  try {
+    const raw = await aiAdapter.generate(source, options);
+    const generated = domain.validateOutput(raw, source, options);
+    const results = generated.map((item) => Object.assign({}, item, {
+      _id: `generated_${crypto.randomBytes(12).toString('hex')}`,
+      ownerId: user._id, studentId: source.studentId, grade: source.grade, subject: source.subject,
+      sourceQuestionId: source._id, sourceQuestionUpdatedAt: source.updatedAt,
+      sourceVersion: domain.sourceVersion(source), taskId: task._id, provider: aiAdapter.provider,
+      status: 'draft', version: 1, createdAt: now, updatedAt: now
+    }));
+    await db.runTransaction(async (transaction) => {
+      const response = await transaction.collection('wrong_questions').doc(source._id).get();
+      const current = response.data;
+      if (!current || current.ownerId !== user._id || current.deletedAt) throw makeError('NOT_FOUND', '错题不存在');
+      domain.checkSource({ sourceVersion: domain.sourceVersion(source) }, current);
+      for (const item of results) {
+        const fields = Object.assign({}, item);
+        delete fields._id;
+        await transaction.collection('generated_questions').doc(item._id).set({ data: fields });
+      }
+      await transaction.collection('tasks').doc(task._id).update({ data: {
+        status: 'completed', generatedQuestionIds: results.map((item) => item._id), updatedAt: new Date()
+      } });
+    });
+    return results;
+  } catch (error) {
+    await db.collection('tasks').doc(task._id).update({ data: {
+      status: 'failed', error: publicMessage(error), updatedAt: new Date()
+    } });
+    throw error;
+  }
+}
+
+async function listGenerations(user, data) {
+  const query = { ownerId: user._id, status: data.status || _.neq('deleted') };
+  if (data.sourceQuestionId) query.sourceQuestionId = data.sourceQuestionId;
+  if (data.studentId) query.studentId = data.studentId;
+  return readAll('generated_questions', query, 'createdAt');
+}
+
+async function updateGeneration(user, data) {
+  await getOwnedGeneratedQuestion(user, data.generatedQuestionId);
+  return db.runTransaction(async (transaction) => {
+    const current = (await transaction.collection('generated_questions').doc(data.generatedQuestionId).get()).data;
+    if (!current || current.ownerId !== user._id || current.status === 'deleted') throw makeError('NOT_FOUND', '生成题不存在');
+    const fields = domain.generatedFields(Object.assign({}, current, data));
+    const changes = Object.assign({}, fields, { status: 'draft', updatedAt: new Date(), version: (current.version || 1) + 1 });
+    await transaction.collection('generated_questions').doc(current._id).update({ data: changes });
+    return Object.assign({}, current, changes);
+  });
+}
+
+async function confirmGeneration(user, data) {
+  await getOwnedGeneratedQuestion(user, data.generatedQuestionId);
+  return db.runTransaction(async (transaction) => {
+    const current = (await transaction.collection('generated_questions').doc(data.generatedQuestionId).get()).data;
+    if (!current || current.ownerId !== user._id || current.status === 'deleted') throw makeError('NOT_FOUND', '生成题不存在');
+    domain.generatedFields(current);
+    const source = (await transaction.collection('wrong_questions').doc(current.sourceQuestionId).get()).data;
+    if (!source || source.ownerId !== user._id || source.deletedAt) throw makeError('NOT_FOUND', '错题不存在');
+    domain.checkSource(current, source);
+    const changes = { status: 'confirmed', updatedAt: new Date() };
+    await transaction.collection('generated_questions').doc(current._id).update({ data: changes });
+    return Object.assign({}, current, changes);
+  });
+}
+
+async function deleteGeneration(user, data) {
+  const current = await getOwnedGeneratedQuestion(user, data.generatedQuestionId);
+  const now = new Date();
+  await db.collection('generated_questions').doc(current._id).update({
+    data: { status: 'deleted', updatedAt: now }
+  });
+  return { deleted: true };
+}
+
+async function listPracticeQuestions(user, data) {
+  const query = { ownerId: user._id, status: 'confirmed' };
+  if (data.studentId) query.studentId = data.studentId;
+  return (await readAll('generated_questions', query, 'updatedAt')).map(domain.publicQuestion);
+}
+
+async function startPractice(user, data) {
+  const current = await getOwnedGeneratedQuestion(user, data.generatedQuestionId);
+  if (current.status !== 'confirmed') throw makeError('INVALID_STATUS', '这道题还没有确认，不能进入练习');
+  return domain.publicQuestion(current);
+}
+
+async function submitPractice(user, data) {
+  const answer = domain.answerText(data.answer);
+  if (!data.submissionId || !/^[a-zA-Z0-9_-]{1,100}$/.test(data.submissionId)) {
+    throw makeError('VALIDATION_ERROR', '缺少有效的提交编号');
+  }
+  const id = crypto.createHash('sha256').update(`${user._id}:${data.submissionId}`).digest('hex');
+  return db.runTransaction(async (transaction) => {
+    const existing = await transaction.collection('practice_records').doc(id).get();
+    if (existing.data) {
+      if (existing.data.generatedQuestionId !== data.generatedQuestionId) throw makeError('VALIDATION_ERROR', '提交编号已被使用');
+      return existing.data;
+    }
+    if (!data.generatedQuestionId) throw makeError('VALIDATION_ERROR', '缺少生成题 ID');
+    const current = (await transaction.collection('generated_questions').doc(data.generatedQuestionId).get()).data;
+    if (!current || current.ownerId !== user._id || current.status === 'deleted') throw makeError('NOT_FOUND', '生成题不存在');
+    if (current.status !== 'confirmed') throw makeError('INVALID_STATUS', '这道题还没有确认，不能提交练习');
+    if (data.questionVersion !== undefined && data.questionVersion !== (current.version || 1)) {
+      throw makeError('QUESTION_CHANGED', '练习题已修改，请重新打开练习');
+    }
+    const record = { ownerId: user._id, studentId: current.studentId, generatedQuestionId: current._id,
+      submissionId: data.submissionId, answer, resultStatus: domain.grade(current, answer),
+      questionSnapshot: domain.snapshot(current), submittedAt: new Date() };
+    await transaction.collection('practice_records').doc(id).set({ data: record });
+    return Object.assign({ _id: id }, record);
+  });
+}
+
+async function readAll(collection, query, orderField) {
+  const result = [];
+  let page;
+  do {
+    page = await db.collection(collection).where(query).orderBy(orderField, 'desc').skip(result.length).limit(100).get();
+    result.push(...page.data);
+  } while (page.data.length === 100);
+  return result;
+}
+
+async function listPracticeRecords(user, data) {
+  const query = { ownerId: user._id };
+  if (data.studentId) query.studentId = data.studentId;
+  return readAll('practice_records', query, 'submittedAt');
+}
+
+async function getOwnedRecord(user, recordId) {
+  if (!recordId) throw makeError('VALIDATION_ERROR', '缺少记录编号');
+  const result = await db.collection('practice_records').where({ _id: recordId, ownerId: user._id }).limit(1).get();
+  if (!result.data.length) throw makeError('NOT_FOUND', '练习记录不存在');
+  return result.data[0];
+}
+
+async function gradePractice(user, data) {
+  const record = await getOwnedRecord(user, data.recordId);
+  const fields = { resultStatus: domain.gradeValue(record, data.resultStatus), gradedAt: new Date() };
+  await db.collection('practice_records').doc(record._id).update({ data: fields });
+  return Object.assign({}, record, fields);
 }
 
 async function getOwnedStudent(user, studentId, required = true) {
@@ -221,6 +409,16 @@ async function getOwnedQuestion(user, questionId) {
     .limit(1)
     .get();
   if (!result.data.length) throw makeError('NOT_FOUND', '错题不存在');
+  return result.data[0];
+}
+
+async function getOwnedGeneratedQuestion(user, generatedQuestionId) {
+  if (!generatedQuestionId) throw makeError('VALIDATION_ERROR', '缺少生成题 ID');
+  const result = await db.collection('generated_questions')
+    .where({ _id: generatedQuestionId, ownerId: user._id })
+    .limit(1)
+    .get();
+  if (!result.data.length || result.data[0].status === 'deleted') throw makeError('NOT_FOUND', '生成题不存在');
   return result.data[0];
 }
 
@@ -293,6 +491,7 @@ function makeError(code, message) {
 
 function publicMessage(error) {
   if (error && error.code === 'HAS_RELATED_DATA') return error.message;
-  if (error && ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHENTICATED'].includes(error.code)) return error.message;
+  if (error && ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHENTICATED', 'INVALID_STATUS',
+    'SOURCE_CHANGED', 'QUESTION_CHANGED', 'UNSUPPORTED_GENERATION', 'INVALID_AI_OUTPUT'].includes(error.code)) return error.message;
   return '服务暂时不可用，请稍后重试';
 }

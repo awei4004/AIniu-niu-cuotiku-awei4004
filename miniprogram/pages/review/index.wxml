@@ -1,15 +1,38 @@
 <view class="page">
-  <view class="topbar">
-    <view>
-      <text class="page-title">复习</text>
-      <text class="page-subtitle">针对容易出错的知识点练习</text>
-    </view>
+  <view class="topbar"><text class="page-title">复习</text><button class="text-button" bindtap="openQuestions">错题库</button></view>
+  <picker wx:if="{{students.length}}" range="{{studentLabels}}" value="{{studentIndex}}" bindchange="changeStudent"><view class="picker-input">{{studentLabels[studentIndex]}}</view></picker>
+  <view class="view-tabs" wx:if="{{students.length}}">
+    <button class="view-tab {{view === 'questions' ? 'active' : ''}}" data-view="questions" bindtap="changeView">练习 · {{questions.length}}</button>
+    <button class="view-tab {{view === 'records' ? 'active' : ''}}" data-view="records" bindtap="changeView">记录 · {{records.length}}</button>
+    <button class="view-tab {{view === 'drafts' ? 'active' : ''}}" data-view="drafts" bindtap="changeView">待确认 · {{drafts.length}}</button>
   </view>
-
-  <view class="surface empty-state review-empty">
-    <view class="review-mark">复</view>
-    <text class="empty-title">复习空间正在准备</text>
-    <text class="empty-text">阶段三将接入 AI 同类题、在线练习和复习记录。</text>
-    <button class="secondary-button" bindtap="showComingSoon">查看功能规划</button>
-  </view>
+  <view class="empty-state" wx:if="{{!loading && !students.length && !error}}"><text class="empty-title">还没有学生档案</text><button class="primary-button empty-action" bindtap="openStudents">添加学生</button></view>
+  <block wx:if="{{students.length && !loading && !error}}">
+    <block wx:if="{{view === 'questions'}}">
+      <view class="surface review-row" wx:for="{{questions}}" wx:key="_id">
+        <text class="subject">{{item.subject === 'math' ? '数学' : '语文'}} · {{item.questionType}}</text>
+        <text class="question-text">{{item.questionText}}</text>
+        <button class="secondary-button row-button" data-id="{{item._id}}" bindtap="start">开始练习</button>
+      </view>
+      <view class="empty-state" wx:if="{{!questions.length}}"><text class="empty-title">暂无已确认的练习题</text><button class="primary-button empty-action" bindtap="openQuestions">选择错题</button></view>
+    </block>
+    <block wx:elif="{{view === 'records'}}">
+      <view class="surface review-row" wx:for="{{records}}" wx:key="_id" bindtap="openRecord" data-id="{{item._id}}">
+        <view class="record-meta"><text class="subject">{{item.timeLabel}}</text><text class="result-tag {{item.resultStatus}}">{{item.resultLabel}}</text></view>
+        <text class="question-text">{{item.questionSnapshot.questionText}}</text>
+        <text class="record-answer">作答：{{item.answer}}</text><text class="record-link">查看答案与解析</text>
+      </view>
+      <view class="empty-state" wx:if="{{!records.length}}"><text class="empty-title">暂无复习记录</text></view>
+    </block>
+    <block wx:else>
+      <view class="surface review-row" wx:for="{{drafts}}" wx:key="_id">
+        <text class="subject">{{item.subject === 'math' ? '数学' : '语文'}} · 待确认</text><text class="question-text">{{item.questionText}}</text>
+        <button class="secondary-button row-button" data-source="{{item.sourceQuestionId}}" bindtap="openDraft">查看候选题</button>
+      </view>
+      <view class="empty-state" wx:if="{{!drafts.length}}"><text class="empty-title">暂无待确认题目</text></view>
+    </block>
+  </block>
+  <text class="error-text" wx:if="{{error}}">{{error}}</text>
+  <button wx:if="{{error}}" class="secondary-button empty-action" bindtap="loadData">重试</button>
+  <view class="loading-text" wx:if="{{loading}}">正在加载复习内容…</view>
 </view>

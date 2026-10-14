@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/build.js",
+    "build": "node scripts/sync-domain.js",
+    "pretest": "node scripts/sync-domain.js",
+    "precheck": "node scripts/sync-domain.js",
     "check": "node scripts/check.js",
     "test": "node --test tests/*.test.js"
   },

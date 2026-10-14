@@ -3,6 +3,8 @@
     "pages/questions/index",
     "pages/questions/form",
     "pages/questions/detail",
+    "pages/generation/index",
+    "pages/practice/index",
     "pages/review/index",
     "pages/profile/index",
     "pages/students/index"

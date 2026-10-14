@@ -1,0 +1,32 @@
+<view class="page">
+  <view class="topbar"><text class="page-title">{{record ? '练习结果' : '在线练习'}}</text></view>
+  <view wx:if="{{question && !loading}}">
+    <view class="practice-question">
+      <text class="meta">{{question.subject === 'math' ? '数学' : '语文'}} · {{question.questionType}}</text>
+      <text class="question-content">{{question.questionText}}</text>
+    </view>
+    <block wx:if="{{!record}}">
+      <text class="form-label">我的答案</text>
+      <textarea class="answer-area" value="{{answer}}" maxlength="3000" placeholder="填写答案" bindinput="changeAnswer" disabled="{{busy}}" />
+      <button class="primary-button submit-button" bindtap="submit" disabled="{{busy}}" loading="{{busy}}">提交答案</button>
+    </block>
+    <block wx:else>
+      <view class="result-status {{record.resultStatus}}">{{resultLabel}}</view>
+      <view class="result-section"><text class="form-label">我的答案</text><text class="result-content">{{record.answer}}</text></view>
+      <view class="result-section"><text class="form-label">参考答案</text><text class="result-content reference">{{record.questionSnapshot.correctAnswer}}</text></view>
+      <view class="result-section"><text class="form-label">解析</text><text class="result-content">{{record.questionSnapshot.analysis}}</text></view>
+      <view class="grade-section" wx:if="{{record.questionSnapshot.answerType === 'open'}}">
+        <text class="form-label">家长判定</text>
+        <view class="grade-actions">
+          <button class="grade-button {{record.resultStatus === 'correct' ? 'selected correct' : ''}}" data-status="correct" bindtap="grade" disabled="{{busy}}">答对</button>
+          <button class="grade-button {{record.resultStatus === 'wrong' ? 'selected wrong' : ''}}" data-status="wrong" bindtap="grade" disabled="{{busy}}">答错</button>
+          <button class="grade-button {{record.resultStatus === 'ungraded' ? 'selected ungraded' : ''}}" data-status="ungraded" bindtap="grade" disabled="{{busy}}">暂不判定</button>
+        </view>
+      </view>
+      <button class="secondary-button submit-button" bindtap="openReview">返回复习</button>
+    </block>
+  </view>
+  <text class="error-text" wx:if="{{error}}">{{error}}</text>
+  <button wx:if="{{error && !question}}" bindtap="loadData" class="secondary-button">重试</button>
+  <view class="loading-text" wx:if="{{loading}}">正在加载…</view>
+</view>

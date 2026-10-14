@@ -1,14 +1,17 @@
-.review-empty {
-  margin-top: 80rpx;
-}
-
-.review-mark {
-  width: 96rpx;
-  height: 96rpx;
-  margin: 0 auto 28rpx;
-  border-radius: 24rpx;
-  background: #fff3d8;
-  color: #bc7810;
-  font-size: 48rpx;
-  line-height: 96rpx;
-}
+.text-button { background: transparent; color: #1f6feb; padding: 0 12rpx; line-height: 64rpx; font-size: 25rpx; }
+.view-tabs { display: flex; gap: 8rpx; margin: 24rpx 0; border-bottom: 1rpx solid #dfe4eb; }
+.view-tab { flex: 1; min-width: 0; padding: 0 4rpx; background: transparent; font-size: 24rpx; line-height: 80rpx; border-radius: 0; color: #727b8b; white-space: nowrap; }
+.view-tab.active { border-bottom: 4rpx solid #1f6feb; color: #1f6feb; font-weight: 600; }
+.review-row { margin-top: 16rpx; padding: 24rpx; }
+.subject { color: #727b8b; font-size: 23rpx; }
+.question-text { display: block; margin: 16rpx 0; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.row-button { line-height: 72rpx; font-size: 25rpx; }
+.record-meta { display: flex; justify-content: space-between; align-items: center; gap: 12rpx; }
+.result-tag { padding: 6rpx 12rpx; border-radius: 8rpx; font-size: 23rpx; }
+.correct { background: #eaf8f0; color: #2d8a55; }
+.wrong { background: #fff1f0; color: #d43828; }
+.ungraded { background: #fff4db; color: #9a6411; }
+.record-answer { display: block; color: #727b8b; overflow-wrap: anywhere; }
+.record-link { display: block; margin-top: 16rpx; color: #1f6feb; font-size: 24rpx; }
+.empty-action { margin-top: 24rpx; }
+.loading-text { padding: 48rpx 0; text-align: center; color: #727b8b; }

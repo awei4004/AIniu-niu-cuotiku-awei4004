@@ -57,6 +57,10 @@ Page({
     wx.navigateTo({ url: `/pages/questions/form?id=${this.data.questionId}` });
   },
 
+  generateSimilar() {
+    wx.navigateTo({ url: `/pages/generation/index?sourceQuestionId=${this.data.questionId}` });
+  },
+
   changeMastery(event) {
     const masteryIndex = Number(event.detail.value);
     const mastery = MASTERY_OPTIONS[masteryIndex].value;
