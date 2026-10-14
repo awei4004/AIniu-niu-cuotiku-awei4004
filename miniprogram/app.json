@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/questions/index",
+    "pages/questions/form",
+    "pages/questions/detail",
     "pages/review/index",
     "pages/profile/index",
     "pages/students/index"

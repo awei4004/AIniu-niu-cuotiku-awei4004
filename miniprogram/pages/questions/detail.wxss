@@ -1,0 +1,107 @@
+.detail-actions {
+  display: flex;
+  align-items: center;
+}
+
+.header-action {
+  margin-left: 22rpx;
+  color: #1f6feb;
+  font-size: 25rpx;
+}
+
+.danger-text {
+  color: #d43828;
+}
+
+.detail-card {
+  padding: 28rpx;
+}
+
+.detail-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.subject-tag,
+.mastery-picker {
+  display: inline-block;
+  padding: 8rpx 14rpx;
+  border-radius: 8rpx;
+  font-size: 23rpx;
+}
+
+.subject-tag.chinese {
+  background: #fff3e8;
+  color: #c86b1e;
+}
+
+.subject-tag.math {
+  background: #eaf4ff;
+  color: #1f6feb;
+}
+
+.meta-text {
+  margin-left: 14rpx;
+  color: #8a92a1;
+  font-size: 23rpx;
+}
+
+.mastery-new,
+.mastery-reviewing {
+  background: #fff5e8;
+  color: #c57921;
+}
+
+.mastery-familiar {
+  background: #eaf4ff;
+  color: #2878c7;
+}
+
+.mastery-mastered {
+  background: #eaf8f0;
+  color: #2d8a55;
+}
+
+.detail-student {
+  margin-top: 22rpx;
+  color: #8a92a1;
+  font-size: 24rpx;
+}
+
+.detail-section {
+  margin-top: 32rpx;
+  padding-top: 28rpx;
+  border-top: 1rpx solid #eef0f3;
+}
+
+.detail-section-title {
+  display: block;
+  color: #4a5568;
+  font-size: 25rpx;
+  font-weight: 600;
+}
+
+.detail-content {
+  display: block;
+  margin-top: 14rpx;
+  color: #263044;
+  font-size: 28rpx;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.question-content {
+  font-size: 32rpx;
+}
+
+.answer-content {
+  color: #2d8a55;
+}
+
+.loading-text {
+  padding: 48rpx 0;
+  color: #8a92a1;
+  text-align: center;
+}

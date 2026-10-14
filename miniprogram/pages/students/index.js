@@ -104,7 +104,7 @@ Page({
     if (!student) return;
     wx.showModal({
       title: '删除学生档案',
-      content: `确认删除“${student.name}”吗？阶段一还没有错题数据。`,
+      content: `确认删除“${student.name}”吗？已有错题时需要先处理错题。`,
       confirmColor: '#d43828',
       success: (result) => {
         if (!result.confirm) return;

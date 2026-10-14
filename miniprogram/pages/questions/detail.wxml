@@ -1,0 +1,58 @@
+<view class="page detail-page">
+  <view class="topbar">
+    <view>
+      <text class="page-title">错题详情</text>
+      <text class="page-subtitle">查看题目、答案和错误线索</text>
+    </view>
+    <view class="detail-actions" wx:if="{{question}}">
+      <text class="header-action" bindtap="editQuestion">编辑</text>
+      <text class="header-action danger-text" bindtap="deleteQuestion">删除</text>
+    </view>
+  </view>
+
+  <view class="surface detail-card" wx:if="{{!loading && question}}">
+    <view class="detail-meta">
+      <view>
+        <text class="subject-tag {{question.subject}}">{{question.subjectLabel}}</text>
+        <text class="meta-text" wx:if="{{question.questionType}}">{{question.questionType}}</text>
+        <text class="meta-text">{{question.difficultyLabel}}</text>
+      </view>
+      <picker mode="selector" range="{{masteryOptions}}" range-key="label" value="{{masteryIndex}}" bindchange="changeMastery">
+        <view class="mastery-picker mastery-{{question.mastery}}">{{question.masteryLabel}} ⌄</view>
+      </picker>
+    </view>
+
+    <view class="detail-student">{{student ? student.name : '未知学生'}} · 小学{{question.grade}}年级{{question.chapter ? ' · ' + question.chapter : ''}}</view>
+    <view class="detail-section">
+      <text class="detail-section-title">题目内容</text>
+      <text class="detail-content question-content">{{question.questionText}}</text>
+    </view>
+
+    <view class="detail-section" wx:if="{{question.studentAnswer}}">
+      <text class="detail-section-title">学生答案</text>
+      <text class="detail-content">{{question.studentAnswer}}</text>
+    </view>
+    <view class="detail-section" wx:if="{{question.correctAnswer}}">
+      <text class="detail-section-title">正确答案</text>
+      <text class="detail-content answer-content">{{question.correctAnswer}}</text>
+    </view>
+    <view class="detail-section" wx:if="{{question.errorReason}}">
+      <text class="detail-section-title">错误原因</text>
+      <text class="detail-content">{{question.errorReason}}</text>
+    </view>
+    <view class="detail-section" wx:if="{{question.knowledgePoints}}">
+      <text class="detail-section-title">知识点</text>
+      <text class="detail-content">{{question.knowledgePoints}}</text>
+    </view>
+    <view class="detail-section" wx:if="{{question.analysis}}">
+      <text class="detail-section-title">解析</text>
+      <text class="detail-content">{{question.analysis}}</text>
+    </view>
+  </view>
+
+  <view class="surface empty-state" wx:elif="{{!loading}}">
+    <text class="empty-title">错题不存在</text>
+    <text class="empty-text">这道错题可能已经被删除，或暂时无法访问。</text>
+  </view>
+  <view class="loading-text" wx:if="{{loading}}">正在加载错题详情…</view>
+</view>

@@ -36,6 +36,16 @@ async function dispatch(action, data, user) {
       return selectStudent(user, data);
     case 'student.delete':
       return deleteStudent(user, data);
+    case 'question.create':
+      return createQuestion(user, data);
+    case 'question.list':
+      return listQuestions(user, data);
+    case 'question.detail':
+      return getOwnedQuestion(user, data.questionId);
+    case 'question.update':
+      return updateQuestion(user, data);
+    case 'question.delete':
+      return deleteQuestion(user, data);
     default:
       throw makeError('NOT_FOUND', '暂不支持该操作');
   }
@@ -140,6 +150,57 @@ async function deleteStudent(user, data) {
   return { deleted: true };
 }
 
+async function createQuestion(user, data) {
+  const fields = await validateQuestion(user, data);
+  const now = new Date();
+  const created = await db.collection('wrong_questions').add({
+    data: Object.assign({}, fields, {
+      ownerId: user._id,
+      createdAt: now,
+      updatedAt: now
+    })
+  });
+  return Object.assign({ _id: created._id }, fields, {
+    ownerId: user._id,
+    createdAt: now,
+    updatedAt: now
+  });
+}
+
+async function listQuestions(user, data) {
+  const query = { ownerId: user._id, deletedAt: _.exists(false) };
+  if (data.studentId) query.studentId = data.studentId;
+  if (data.subject) query.subject = data.subject;
+  if (data.mastery) query.mastery = data.mastery;
+  const result = await db.collection('wrong_questions')
+    .where(query)
+    .orderBy('createdAt', 'desc')
+    .get();
+  const keyword = String(data.keyword || '').trim().toLowerCase();
+  if (!keyword) return result.data;
+  return result.data.filter((item) => [item.questionText, item.chapter, item.analysis,
+    item.errorReason, item.knowledgePoints].join(' ').toLowerCase().includes(keyword));
+}
+
+async function updateQuestion(user, data) {
+  const current = await getOwnedQuestion(user, data.questionId);
+  const fields = await validateQuestion(user, data);
+  const now = new Date();
+  await db.collection('wrong_questions').doc(current._id).update({
+    data: Object.assign({}, fields, { updatedAt: now })
+  });
+  return Object.assign({}, current, fields, { updatedAt: now });
+}
+
+async function deleteQuestion(user, data) {
+  const current = await getOwnedQuestion(user, data.questionId);
+  const now = new Date();
+  await db.collection('wrong_questions').doc(current._id).update({
+    data: { deletedAt: now, updatedAt: now }
+  });
+  return { deleted: true };
+}
+
 async function getOwnedStudent(user, studentId, required = true) {
   if (!studentId) {
     if (required) throw makeError('VALIDATION_ERROR', '缺少学生 ID');
@@ -151,6 +212,51 @@ async function getOwnedStudent(user, studentId, required = true) {
     .get();
   if (!result.data.length) throw makeError('NOT_FOUND', '学生不存在');
   return result.data[0];
+}
+
+async function getOwnedQuestion(user, questionId) {
+  if (!questionId) throw makeError('VALIDATION_ERROR', '缺少错题 ID');
+  const result = await db.collection('wrong_questions')
+    .where({ _id: questionId, ownerId: user._id, deletedAt: _.exists(false) })
+    .limit(1)
+    .get();
+  if (!result.data.length) throw makeError('NOT_FOUND', '错题不存在');
+  return result.data[0];
+}
+
+async function validateQuestion(user, data) {
+  const studentId = String(data.studentId || '').trim();
+  const subject = String(data.subject || '').trim();
+  const questionText = String(data.questionText || '').trim();
+  const student = await getOwnedStudent(user, studentId);
+  if (!['chinese', 'math'].includes(subject)) throw makeError('VALIDATION_ERROR', '请选择语文或数学');
+  if (!questionText || questionText.length > 5000) {
+    throw makeError('VALIDATION_ERROR', '题目内容应为 1 至 5000 个字符');
+  }
+  const questionType = String(data.questionType || '').trim();
+  const difficulty = String(data.difficulty || 'normal').trim();
+  const mastery = String(data.mastery || 'new').trim();
+  const allowedTypes = ['选择题', '填空题', '计算题', '应用题', '阅读题', '作文题', '其他'];
+  const allowedDifficulties = ['easy', 'normal', 'hard'];
+  const allowedMastery = ['new', 'reviewing', 'familiar', 'mastered'];
+  if (questionType && !allowedTypes.includes(questionType)) throw makeError('VALIDATION_ERROR', '题型不正确');
+  if (!allowedDifficulties.includes(difficulty)) throw makeError('VALIDATION_ERROR', '难度不正确');
+  if (!allowedMastery.includes(mastery)) throw makeError('VALIDATION_ERROR', '掌握状态不正确');
+  return {
+    studentId,
+    subject,
+    grade: student.grade,
+    chapter: String(data.chapter || '').trim().slice(0, 100),
+    questionType,
+    questionText,
+    studentAnswer: String(data.studentAnswer || '').trim().slice(0, 3000),
+    correctAnswer: String(data.correctAnswer || '').trim().slice(0, 3000),
+    analysis: String(data.analysis || '').trim().slice(0, 5000),
+    errorReason: String(data.errorReason || '').trim().slice(0, 1000),
+    knowledgePoints: String(data.knowledgePoints || '').trim().slice(0, 500),
+    difficulty,
+    mastery
+  };
 }
 
 function validateStudent(data) {

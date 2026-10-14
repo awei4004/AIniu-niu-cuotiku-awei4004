@@ -1,0 +1,55 @@
+.form-page {
+  padding-bottom: 64rpx;
+}
+
+.form-card {
+  padding: 28rpx;
+}
+
+.form-section-title {
+  display: block;
+  color: #263044;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.optional-section {
+  margin-top: 42rpx;
+  padding-top: 28rpx;
+  border-top: 1rpx solid #eef0f3;
+}
+
+.required-label::after {
+  content: ' *';
+  color: #d43828;
+}
+
+.form-columns {
+  display: flex;
+  gap: 16rpx;
+}
+
+.form-column {
+  min-width: 0;
+  flex: 1;
+}
+
+.textarea-input {
+  width: 100%;
+  min-height: 150rpx;
+  padding: 20rpx 24rpx;
+  border: 1rpx solid #dfe4eb;
+  border-radius: 12rpx;
+  background: #ffffff;
+  color: #172033;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.question-textarea {
+  min-height: 230rpx;
+}
+
+.save-button {
+  margin-top: 32rpx;
+}

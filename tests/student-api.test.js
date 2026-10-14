@@ -55,3 +55,77 @@ test('stage one rejects invalid student input', async () => {
     (error) => error.code === 'VALIDATION_ERROR'
   );
 });
+
+test('stage two supports wrong question lifecycle and scoped filters', async () => {
+  const student = await api.call('student.create', { name: '阶段二学生', grade: 3 });
+  await api.call('student.select', { studentId: student._id });
+
+  const mathQuestion = await api.call('question.create', {
+    studentId: student._id,
+    subject: 'math',
+    questionType: '计算题',
+    difficulty: 'normal',
+    questionText: '23 × 14 =',
+    studentAnswer: '332',
+    correctAnswer: '322',
+    errorReason: '进位时漏加',
+    knowledgePoints: '两位数乘法'
+  });
+  const chineseQuestion = await api.call('question.create', {
+    studentId: student._id,
+    subject: 'chinese',
+    questionText: '请用“虽然……但是……”造句',
+    mastery: 'mastered'
+  });
+
+  let list = await api.call('question.list', { studentId: student._id });
+  assert.equal(list.length, 2);
+  assert.equal((await api.call('question.list', { subject: 'math' })).length, 1);
+  assert.equal((await api.call('question.list', { keyword: '进位' })).length, 1);
+  assert.equal((await api.call('question.list', { mastery: 'mastered' })).length, 1);
+
+  const updated = await api.call('question.update', {
+    questionId: mathQuestion._id,
+    studentId: student._id,
+    subject: 'math',
+    questionText: '23 × 14 =',
+    correctAnswer: '322',
+    mastery: 'reviewing'
+  });
+  assert.equal(updated.mastery, 'reviewing');
+  assert.equal((await api.call('question.detail', { questionId: mathQuestion._id })).mastery, 'reviewing');
+
+  await assert.rejects(
+    api.call('student.delete', { studentId: student._id }),
+    (error) => error.code === 'HAS_RELATED_DATA'
+  );
+
+  await api.call('question.delete', { questionId: mathQuestion._id });
+  list = await api.call('question.list', { studentId: student._id });
+  assert.equal(list.length, 1);
+  assert.equal(list[0]._id, chineseQuestion._id);
+  await api.call('question.delete', { questionId: chineseQuestion._id });
+  assert.deepEqual(await api.call('question.list', { studentId: student._id }), []);
+  await api.call('student.delete', { studentId: student._id });
+});
+
+test('stage two rejects invalid question input and unknown student', async () => {
+  const students = await api.call('student.list');
+  const student = students[0];
+  await assert.rejects(
+    api.call('question.create', {
+      studentId: student._id,
+      subject: 'science',
+      questionText: '不支持的学科'
+    }),
+    (error) => error.code === 'VALIDATION_ERROR'
+  );
+  await assert.rejects(
+    api.call('question.create', {
+      studentId: 'other-user-student',
+      subject: 'math',
+      questionText: '不属于当前用户的学生'
+    }),
+    (error) => error.code === 'NOT_FOUND'
+  );
+});

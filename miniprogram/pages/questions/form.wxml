@@ -1,0 +1,64 @@
+<view class="page form-page">
+  <view class="topbar">
+    <view>
+      <text class="page-title">{{isEditing ? '编辑错题' : '录入错题'}}</text>
+      <text class="page-subtitle">先记录题目，再补充错误线索</text>
+    </view>
+  </view>
+
+  <view class="surface form-card" wx:if="{{!loading}}">
+    <text class="form-section-title">基本信息</text>
+    <text class="form-label">学生</text>
+    <picker mode="selector" range="{{studentLabels}}" value="{{studentIndex}}" bindchange="onStudentChange">
+      <view class="picker-input"><text>{{studentLabels[studentIndex] || '请选择学生'}}</text><text class="picker-arrow">⌄</text></view>
+    </picker>
+
+    <text class="form-label">学科</text>
+    <picker mode="selector" range="{{subjectOptions}}" range-key="label" value="{{subjectIndex}}" bindchange="onSubjectChange">
+      <view class="picker-input"><text>{{subjectOptions[subjectIndex].label}}</text><text class="picker-arrow">⌄</text></view>
+    </picker>
+
+    <text class="form-label required-label">题目内容</text>
+    <textarea class="textarea-input question-textarea" maxlength="5000" placeholder="请输入完整题目，支持换行" value="{{questionText}}" data-field="questionText" bindinput="onInput" />
+
+    <view class="form-columns">
+      <view class="form-column">
+        <text class="form-label">题型</text>
+        <picker mode="selector" range="{{questionTypes}}" value="{{questionTypeIndex}}" bindchange="onQuestionTypeChange">
+          <view class="picker-input"><text>{{questionTypes[questionTypeIndex]}}</text><text class="picker-arrow">⌄</text></view>
+        </picker>
+      </view>
+      <view class="form-column">
+        <text class="form-label">难度</text>
+        <picker mode="selector" range="{{difficulties}}" range-key="label" value="{{difficultyIndex}}" bindchange="onDifficultyChange">
+          <view class="picker-input"><text>{{difficulties[difficultyIndex].label}}</text><text class="picker-arrow">⌄</text></view>
+        </picker>
+      </view>
+    </view>
+
+    <text class="form-label">章节 / 知识点范围</text>
+    <input class="text-input" maxlength="100" placeholder="例如：三位数乘两位数" value="{{chapter}}" data-field="chapter" bindinput="onInput" />
+
+    <text class="form-section-title optional-section">错误信息</text>
+    <text class="form-label">学生答案</text>
+    <textarea class="textarea-input" maxlength="3000" placeholder="记录学生当时的答案" value="{{studentAnswer}}" data-field="studentAnswer" bindinput="onInput" />
+    <text class="form-label">正确答案</text>
+    <textarea class="textarea-input" maxlength="3000" placeholder="记录正确答案或参考答案" value="{{correctAnswer}}" data-field="correctAnswer" bindinput="onInput" />
+    <text class="form-label">错误原因</text>
+    <textarea class="textarea-input" maxlength="1000" placeholder="例如：进位时漏加" value="{{errorReason}}" data-field="errorReason" bindinput="onInput" />
+    <text class="form-label">知识点</text>
+    <input class="text-input" maxlength="500" placeholder="多个知识点可用顿号分隔" value="{{knowledgePoints}}" data-field="knowledgePoints" bindinput="onInput" />
+    <text class="form-label">解析</text>
+    <textarea class="textarea-input" maxlength="5000" placeholder="补充解题过程或讲解" value="{{analysis}}" data-field="analysis" bindinput="onInput" />
+
+    <text class="form-section-title optional-section">复习状态</text>
+    <picker mode="selector" range="{{masteryOptions}}" range-key="label" value="{{masteryIndex}}" bindchange="onMasteryChange">
+      <view class="picker-input"><text>{{masteryOptions[masteryIndex].label}}</text><text class="picker-arrow">⌄</text></view>
+    </picker>
+
+    <text class="error-text" wx:if="{{formError}}">{{formError}}</text>
+    <button class="primary-button save-button" loading="{{saving}}" disabled="{{saving || loading}}" bindtap="saveQuestion">保存错题</button>
+  </view>
+
+  <view class="loading-text" wx:if="{{loading}}">正在加载表单…</view>
+</view>

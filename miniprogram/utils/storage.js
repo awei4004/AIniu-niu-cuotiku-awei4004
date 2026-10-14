@@ -1,5 +1,6 @@
 const USER_KEY = 'local_user';
 const STUDENTS_KEY = 'local_students';
+const QUESTIONS_KEY = 'local_wrong_questions';
 
 function getUser() {
   return wx.getStorageSync(USER_KEY) || null;
@@ -17,6 +18,15 @@ function getStudents() {
 function saveStudents(students) {
   wx.setStorageSync(STUDENTS_KEY, students);
   return students;
+}
+
+function getQuestions() {
+  return wx.getStorageSync(QUESTIONS_KEY) || [];
+}
+
+function saveQuestions(questions) {
+  wx.setStorageSync(QUESTIONS_KEY, questions);
+  return questions;
 }
 
 function makeId(prefix) {
@@ -40,6 +50,8 @@ module.exports = {
   saveUser,
   getStudents,
   saveStudents,
+  getQuestions,
+  saveQuestions,
   makeId,
   ensureUser
 };

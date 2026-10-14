@@ -4,44 +4,83 @@
       <text class="page-title">错题库</text>
       <text class="page-subtitle">把错误整理成下一次进步</text>
     </view>
-    <view class="student-switch" bindtap="openStudents">
-      <text class="student-switch-name">{{currentStudent ? currentStudent.name : '添加学生'}}</text>
-      <text class="student-switch-arrow">›</text>
-    </view>
+    <button class="add-question-button" bindtap="openCreate">+ 录入</button>
   </view>
 
   <view class="overview surface">
     <view class="overview-title">{{currentStudent ? currentStudent.name + ' 的学习空间' : '还没有学生档案'}}</view>
     <view class="overview-grid">
       <view class="overview-item">
-        <text class="overview-number">0</text>
-        <text class="overview-label">错题总数</text>
+        <text class="overview-number">{{totalCount}}</text>
+        <text class="overview-label">当前错题</text>
       </view>
       <view class="overview-item">
-        <text class="overview-number">0</text>
+        <text class="overview-number">{{reviewCount}}</text>
         <text class="overview-label">待复习</text>
       </view>
-      <view class="overview-item">
-        <text class="overview-number">{{studentCount}}</text>
+      <view class="overview-item" bindtap="openStudents">
+        <text class="overview-number">{{students.length}}</text>
         <text class="overview-label">学生档案</text>
       </view>
     </view>
   </view>
 
-  <view class="section-heading">
-    <text class="section-title">最近错题</text>
-    <text class="section-caption">阶段一</text>
+  <view class="filter-panel surface">
+    <view class="filter-row">
+      <picker class="filter-picker" mode="selector" range="{{studentPickerLabels}}" value="{{studentPickerIndex}}" bindchange="onStudentFilterChange">
+        <view class="filter-control">
+          <text>{{studentPickerLabels[studentPickerIndex]}}</text>
+          <text class="filter-arrow">⌄</text>
+        </view>
+      </picker>
+      <picker class="filter-picker" mode="selector" range="{{subjectOptions}}" range-key="label" value="{{subjectPickerIndex}}" bindchange="onSubjectChange">
+        <view class="filter-control">
+          <text>{{subjectOptions[subjectPickerIndex].label}}</text>
+          <text class="filter-arrow">⌄</text>
+        </view>
+      </picker>
+    </view>
+    <view class="search-row">
+      <input class="search-input" value="{{searchKeyword}}" confirm-type="search" placeholder="搜索题目、章节或知识点" bindinput="onSearchInput" bindconfirm="onSearchConfirm" />
+      <text class="clear-filter" bindtap="clearFilters">重置</text>
+    </view>
   </view>
 
-  <view class="surface empty-state" wx:if="{{!currentStudent}}">
+  <view class="section-heading">
+    <text class="section-title">错题记录</text>
+    <text class="section-caption">{{totalCount}} 道</text>
+  </view>
+
+  <view class="surface empty-state" wx:if="{{!loading && !students.length}}">
     <text class="empty-title">先建立学生档案</text>
     <text class="empty-text">添加学生后，错题会按学生分别保存。</text>
     <button class="primary-button" bindtap="openStudents">管理学生</button>
   </view>
 
-  <view class="surface empty-state" wx:else>
-    <text class="empty-title">还没有错题</text>
-    <text class="empty-text">学生档案已准备好，下一阶段将接入错题录入。</text>
-    <button class="secondary-button" bindtap="showComingSoon">查看录入计划</button>
+  <view class="surface empty-state" wx:elif="{{!loading && !questions.length}}">
+    <text class="empty-title">还没有匹配的错题</text>
+    <text class="empty-text">可以直接录入一道错题，或调整上方筛选条件。</text>
+    <button class="primary-button" bindtap="openCreate">录入第一道错题</button>
   </view>
+
+  <view class="question-list" wx:if="{{!loading && questions.length}}">
+    <view class="question-row surface" wx:for="{{questions}}" wx:key="_id" bindtap="openDetail" data-id="{{item._id}}">
+      <view class="question-row-top">
+        <view class="question-meta">
+          <text class="subject-tag {{item.subject}}">{{item.subjectLabel}}</text>
+          <text class="question-type" wx:if="{{item.questionType}}">{{item.questionType}}</text>
+          <text class="question-type">{{item.difficultyLabel}}</text>
+        </view>
+        <text class="mastery-tag mastery-{{item.mastery}}">{{item.masteryLabel}}</text>
+      </view>
+      <text class="question-preview">{{item.questionPreview}}</text>
+      <view class="question-row-bottom">
+        <text wx:if="{{item.chapter}}">{{item.chapter}}</text>
+        <text wx:else>未填写章节</text>
+        <text>查看详情 ›</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading-text" wx:if="{{loading}}">正在加载错题库…</view>
 </view>
