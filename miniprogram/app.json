@@ -1,0 +1,37 @@
+{
+  "pages": [
+    "pages/questions/index",
+    "pages/review/index",
+    "pages/profile/index",
+    "pages/students/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "错题知识库",
+    "navigationBarBackgroundColor": "#f7f8fa",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f8fa",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#8a8f98",
+    "selectedColor": "#1f6feb",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/questions/index",
+        "text": "错题库"
+      },
+      {
+        "pagePath": "pages/review/index",
+        "text": "复习"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

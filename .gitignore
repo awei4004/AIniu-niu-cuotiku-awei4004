@@ -1,0 +1,6 @@
+node_modules/
+.npm-cache/
+project.private.config.json
+*.log
+miniprogram/services/student-domain.js
+cloudfunctions/api/student-domain.js

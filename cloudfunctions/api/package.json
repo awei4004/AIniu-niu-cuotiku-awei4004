@@ -1,0 +1,10 @@
+{
+  "name": "wrong-question-api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "primary-wrong-question-library": "file:../..",
+    "wx-server-sdk": "4.0.2"
+  }
+}

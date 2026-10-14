@@ -1,0 +1,56 @@
+<view class="page">
+  <view class="topbar">
+    <view>
+      <text class="page-title">学生管理</text>
+      <text class="page-subtitle">每位学生拥有独立的错题空间</text>
+    </view>
+    <button class="add-button" bindtap="startCreate">添加</button>
+  </view>
+
+  <view class="editor surface">
+    <view class="editor-heading">
+      <text class="editor-title">{{editingId ? '编辑学生' : '添加学生'}}</text>
+      <text class="editor-close" wx:if="{{editingId}}" bindtap="cancelEdit">取消</text>
+    </view>
+    <text class="form-label">姓名</text>
+    <input class="text-input" value="{{formName}}" maxlength="20" placeholder="例如：小明" bindinput="onNameInput" />
+    <text class="form-label">年级</text>
+    <picker mode="selector" range="{{gradeOptions}}" value="{{formGradeIndex}}" bindchange="onGradeChange">
+      <view class="picker-input">
+        <text>小学{{gradeOptions[formGradeIndex]}}年级</text>
+        <text class="picker-arrow">⌄</text>
+      </view>
+    </picker>
+    <text class="error-text" wx:if="{{formError}}">{{formError}}</text>
+    <button class="primary-button save-button" loading="{{saving}}" disabled="{{saving}}" bindtap="saveStudent">保存学生</button>
+  </view>
+
+  <view class="section-heading">
+    <text class="section-title">已有学生</text>
+    <text class="section-caption">{{students.length}} 人</text>
+  </view>
+
+  <view class="surface empty-state compact-empty" wx:if="{{!loading && !students.length}}">
+    <text class="empty-title">还没有学生档案</text>
+    <text class="empty-text">先添加一位学生，后续错题会按学生分别保存。</text>
+  </view>
+
+  <view class="student-list" wx:if="{{!loading && students.length}}">
+    <view class="student-row surface" wx:for="{{students}}" wx:key="_id">
+      <view class="student-main" bindtap="selectStudent" data-id="{{item._id}}">
+        <view class="student-avatar">{{item.firstLetter}}</view>
+        <view class="student-copy">
+          <text class="student-name">{{item.name}}</text>
+          <text class="student-grade">小学{{item.grade}}年级</text>
+        </view>
+        <text class="tag" wx:if="{{item.isCurrent}}">当前</text>
+      </view>
+      <view class="row-actions">
+        <text class="row-action" bindtap="startEdit" data-id="{{item._id}}">编辑</text>
+        <text class="row-action danger" bindtap="deleteStudent" data-id="{{item._id}}">删除</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading-text" wx:if="{{loading}}">正在加载学生档案…</view>
+</view>

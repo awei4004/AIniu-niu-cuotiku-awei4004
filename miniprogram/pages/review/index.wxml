@@ -1,0 +1,15 @@
+<view class="page">
+  <view class="topbar">
+    <view>
+      <text class="page-title">复习</text>
+      <text class="page-subtitle">针对容易出错的知识点练习</text>
+    </view>
+  </view>
+
+  <view class="surface empty-state review-empty">
+    <view class="review-mark">复</view>
+    <text class="empty-title">复习空间正在准备</text>
+    <text class="empty-text">阶段三将接入 AI 同类题、在线练习和复习记录。</text>
+    <button class="secondary-button" bindtap="showComingSoon">查看功能规划</button>
+  </view>
+</view>

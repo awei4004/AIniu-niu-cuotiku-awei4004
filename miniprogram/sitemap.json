@@ -1,0 +1,21 @@
+{
+  "desc": "错题知识库页面索引配置",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "pages/questions/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/review/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/profile/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/students/index"
+    }
+  ]
+}

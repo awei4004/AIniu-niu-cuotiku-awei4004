@@ -1,0 +1,36 @@
+<view class="page">
+  <view class="topbar">
+    <view>
+      <text class="page-title">我的</text>
+      <text class="page-subtitle">管理学生档案和个人设置</text>
+    </view>
+  </view>
+
+  <view class="profile-header surface">
+    <view class="avatar">{{firstLetter}}</view>
+    <view class="profile-copy">
+      <text class="profile-name">{{user ? user.displayName : '本地演示用户'}}</text>
+      <text class="profile-note">个人错题空间</text>
+    </view>
+  </view>
+
+  <view class="section-heading">
+    <text class="section-title">当前学生</text>
+    <text class="section-caption">{{students.length}} 人</text>
+  </view>
+
+  <view class="student-card surface" wx:if="{{currentStudent}}">
+    <view>
+      <text class="student-name">{{currentStudent.name}}</text>
+      <text class="student-grade">小学{{currentStudent.grade}}年级</text>
+    </view>
+    <text class="tag">当前使用</text>
+  </view>
+
+  <view class="surface empty-state compact-empty" wx:else>
+    <text class="empty-title">还没有学生</text>
+    <text class="empty-text">添加学生后即可分别管理错题。</text>
+  </view>
+
+  <button class="primary-button manage-button" bindtap="openStudents">管理学生</button>
+</view>

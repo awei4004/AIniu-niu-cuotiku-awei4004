@@ -1,0 +1,60 @@
+.profile-header {
+  display: flex;
+  align-items: center;
+  padding: 28rpx;
+}
+
+.avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #dceaff;
+  color: #1f6feb;
+  font-size: 40rpx;
+  line-height: 88rpx;
+  text-align: center;
+}
+
+.profile-copy {
+  margin-left: 24rpx;
+}
+
+.profile-name,
+.profile-note,
+.student-name,
+.student-grade {
+  display: block;
+}
+
+.profile-name {
+  color: #263044;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.profile-note,
+.student-grade {
+  margin-top: 8rpx;
+  color: #8a92a1;
+  font-size: 24rpx;
+}
+
+.student-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx;
+}
+
+.student-name {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.manage-button {
+  margin-top: 28rpx;
+}
+
+.compact-empty {
+  padding: 48rpx 32rpx;
+}

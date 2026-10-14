@@ -1,0 +1,47 @@
+<view class="page">
+  <view class="topbar">
+    <view>
+      <text class="page-title">错题库</text>
+      <text class="page-subtitle">把错误整理成下一次进步</text>
+    </view>
+    <view class="student-switch" bindtap="openStudents">
+      <text class="student-switch-name">{{currentStudent ? currentStudent.name : '添加学生'}}</text>
+      <text class="student-switch-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="overview surface">
+    <view class="overview-title">{{currentStudent ? currentStudent.name + ' 的学习空间' : '还没有学生档案'}}</view>
+    <view class="overview-grid">
+      <view class="overview-item">
+        <text class="overview-number">0</text>
+        <text class="overview-label">错题总数</text>
+      </view>
+      <view class="overview-item">
+        <text class="overview-number">0</text>
+        <text class="overview-label">待复习</text>
+      </view>
+      <view class="overview-item">
+        <text class="overview-number">{{studentCount}}</text>
+        <text class="overview-label">学生档案</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-heading">
+    <text class="section-title">最近错题</text>
+    <text class="section-caption">阶段一</text>
+  </view>
+
+  <view class="surface empty-state" wx:if="{{!currentStudent}}">
+    <text class="empty-title">先建立学生档案</text>
+    <text class="empty-text">添加学生后，错题会按学生分别保存。</text>
+    <button class="primary-button" bindtap="openStudents">管理学生</button>
+  </view>
+
+  <view class="surface empty-state" wx:else>
+    <text class="empty-title">还没有错题</text>
+    <text class="empty-text">学生档案已准备好，下一阶段将接入错题录入。</text>
+    <button class="secondary-button" bindtap="showComingSoon">查看录入计划</button>
+  </view>
+</view>

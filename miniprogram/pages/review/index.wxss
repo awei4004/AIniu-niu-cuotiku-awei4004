@@ -1,0 +1,14 @@
+.review-empty {
+  margin-top: 80rpx;
+}
+
+.review-mark {
+  width: 96rpx;
+  height: 96rpx;
+  margin: 0 auto 28rpx;
+  border-radius: 24rpx;
+  background: #fff3d8;
+  color: #bc7810;
+  font-size: 48rpx;
+  line-height: 96rpx;
+}

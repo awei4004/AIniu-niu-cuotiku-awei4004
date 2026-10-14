@@ -1,0 +1,76 @@
+.student-switch {
+  display: flex;
+  align-items: center;
+  max-width: 220rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 12rpx;
+  background: #eef5ff;
+  color: #1f6feb;
+}
+
+.student-switch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 24rpx;
+}
+
+.student-switch-arrow {
+  margin-left: 8rpx;
+  font-size: 34rpx;
+  line-height: 24rpx;
+}
+
+.overview {
+  padding: 28rpx;
+}
+
+.overview-title {
+  color: #263044;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.overview-grid {
+  display: flex;
+  margin-top: 32rpx;
+}
+
+.overview-item {
+  flex: 1;
+}
+
+.overview-number,
+.overview-label {
+  display: block;
+}
+
+.overview-number {
+  color: #1f6feb;
+  font-size: 46rpx;
+  font-weight: 700;
+}
+
+.overview-label {
+  margin-top: 6rpx;
+  color: #8790a0;
+  font-size: 23rpx;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 38rpx 4rpx 18rpx;
+}
+
+.section-title {
+  color: #263044;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.section-caption {
+  color: #9aa2ae;
+  font-size: 23rpx;
+}

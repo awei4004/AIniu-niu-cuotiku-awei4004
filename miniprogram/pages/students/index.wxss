@@ -1,0 +1,111 @@
+.add-button {
+  min-width: 120rpx;
+  padding: 0 22rpx;
+  background: #1f6feb;
+  color: #ffffff;
+  font-size: 25rpx;
+  line-height: 68rpx;
+}
+
+.editor {
+  padding: 28rpx;
+}
+
+.editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editor-title {
+  color: #263044;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.editor-close {
+  color: #1f6feb;
+  font-size: 25rpx;
+}
+
+.picker-arrow {
+  color: #8a92a1;
+  font-size: 34rpx;
+}
+
+.save-button {
+  margin-top: 28rpx;
+}
+
+.student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.student-row {
+  padding: 22rpx 24rpx;
+}
+
+.student-main {
+  display: flex;
+  align-items: center;
+}
+
+.student-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  background: #e4efff;
+  color: #1f6feb;
+  font-size: 32rpx;
+  line-height: 72rpx;
+  text-align: center;
+}
+
+.student-copy {
+  min-width: 0;
+  flex: 1;
+  margin-left: 20rpx;
+}
+
+.student-name,
+.student-grade {
+  display: block;
+}
+
+.student-name {
+  color: #263044;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.student-grade {
+  margin-top: 6rpx;
+  color: #8a92a1;
+  font-size: 24rpx;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #eef0f3;
+}
+
+.row-action {
+  margin-left: 28rpx;
+  color: #1f6feb;
+  font-size: 24rpx;
+}
+
+.row-action.danger {
+  color: #d43828;
+}
+
+.loading-text {
+  padding: 48rpx 0;
+  color: #8a92a1;
+  text-align: center;
+}

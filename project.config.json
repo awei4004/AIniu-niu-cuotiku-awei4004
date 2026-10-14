@@ -1,0 +1,23 @@
+{
+  "description": "小学生语文数学错题知识库",
+  "packOptions": {
+    "ignore": []
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": false,
+    "compileHotReLoad": true,
+    "lazyloadPlaceholderEnable": false,
+    "useCompilerPlugins": false
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.7.2",
+  "appid": "touristappid",
+  "projectname": "错题知识库",
+  "miniprogramRoot": "miniprogram",
+  "cloudfunctionRoot": "cloudfunctions",
+  "condition": {}
+}
