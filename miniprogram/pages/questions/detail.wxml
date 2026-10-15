@@ -29,6 +29,14 @@
       <text class="detail-content question-content">{{question.questionText}}</text>
     </view>
 
+    <view class="detail-section" wx:if="{{question.sourceFileId}}">
+      <text class="detail-section-title">错题原图</text>
+      <image wx:if="{{imageUrl}}" class="detail-source-image" src="{{imageUrl}}" data-src="{{imageUrl}}" mode="aspectFit" bindtap="previewImage" binderror="onImageError" />
+      <text class="loading-text" wx:if="{{imageLoading}}">正在加载原图</text>
+      <text class="error-text" wx:if="{{imageError}}">{{imageError}}</text>
+      <button wx:if="{{imageError}}" class="secondary-button" bindtap="retryImage">重新加载原图</button>
+    </view>
+
     <view class="detail-section" wx:if="{{question.studentAnswer}}">
       <text class="detail-section-title">学生答案</text>
       <text class="detail-content">{{question.studentAnswer}}</text>

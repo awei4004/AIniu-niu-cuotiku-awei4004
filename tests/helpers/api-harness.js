@@ -13,6 +13,15 @@ function createBackend(mode) {
   let sequence = 0;
   let setFailure = 0;
   let adapter = async (source, options) => domain.demoGenerate(source, options);
+  let ocrAdapter = async () => ({ provider: 'tencent', text: '23 × 14 =' });
+  let ocrCalls = 0;
+  let clockOffset = 0;
+  let transactionQueue = Promise.resolve();
+  const cloudFiles = new Map();
+  class Clock extends Date {
+    constructor(...args) { super(...(args.length ? args : [Date.now() + clockOffset])); }
+    static now() { return Date.now() + clockOffset; }
+  }
   const rows = (name) => {
     if (!tables.has(name)) tables.set(name, []);
     return tables.get(name);
@@ -70,13 +79,17 @@ function createBackend(mode) {
       neq: (value) => ({ operation: 'neq', value })
     },
     collection,
-    async runTransaction(callback) {
-      const backup = clone(tables);
-      try { return await callback(db); } catch (error) {
-        tables.clear();
-        backup.forEach((value, key) => tables.set(key, value));
-        throw error;
-      }
+    runTransaction(callback) {
+      const pending = transactionQueue.then(async () => {
+        const backup = clone(tables);
+        try { return await callback(db); } catch (error) {
+          tables.clear();
+          backup.forEach((value, key) => tables.set(key, value));
+          throw error;
+        }
+      });
+      transactionQueue = pending.catch(() => {});
+      return pending;
     }
   };
   const cloud = {
@@ -85,9 +98,17 @@ function createBackend(mode) {
       // The real SDK throws for absent doc.get unless this option is explicitly disabled.
       assert.equal(config.throwOnNotFound, false);
       return db;
+    },
+    async downloadFile({ fileID }) {
+      if (!cloudFiles.has(fileID)) throw new Error('Missing cloud file');
+      return { fileContent: Buffer.from(cloudFiles.get(fileID)) };
+    },
+    async getTempFileURL({ fileList }) {
+      return { fileList: fileList.map((fileID) => ({ fileID, status: cloudFiles.has(fileID) ? 0 : -1,
+        tempFileURL: `https://files.example.test/${fileID.split('/').slice(3).join('/')}` })) };
     }
   };
-  const context = vm.createContext({ Date, Math, Promise, console: { error() {} },
+  const context = vm.createContext({ Date: Clock, Math, Promise, console: { error() {} },
     getApp: () => ({ globalData: { cloudEnabled: false } }),
     wx: { getStorageSync: (key) => clone(memory.get(key)), setStorageSync: (key, value) => memory.set(key, clone(value)) }
   });
@@ -100,6 +121,7 @@ function createBackend(mode) {
     const requireFile = (id) => {
       if (id === 'wx-server-sdk') return cloud;
       if (id === './ai-adapter') return { provider: 'demo', generate: (...args) => adapter(...args) };
+      if (id === './ocr-adapter') return { provider: () => 'tencent', recognize: (...args) => { ocrCalls += 1; return ocrAdapter(...args); } };
       if (!id.startsWith('.')) return require(id);
       return load(path.resolve(path.dirname(file), `${id}.js`));
     };
@@ -109,7 +131,7 @@ function createBackend(mode) {
   }
   const entry = load(path.join(root, mode === 'local' ? 'miniprogram/services/api.js' : 'cloudfunctions/api/index.js'));
   const keys = { generated_questions: 'local_generated_questions', practice_records: 'local_practice_records',
-    wrong_questions: 'local_wrong_questions', tasks: 'local_tasks' };
+    wrong_questions: 'local_wrong_questions', tasks: 'local_tasks', files: 'local_files' };
   return {
     async call(action, data = {}) {
       if (mode === 'local') return clone(await entry.call(action, data));
@@ -123,6 +145,10 @@ function createBackend(mode) {
     },
     inspect: (name) => clone(mode === 'local' ? memory.get(keys[name]) || [] : rows(name)),
     setAdapter(value) { adapter = value; },
+    setOcrAdapter(value) { ocrAdapter = value; },
+    ocrCalls: () => ocrCalls,
+    putCloudFile(id, bytes) { cloudFiles.set(id, Buffer.from(bytes)); },
+    advanceClock(value) { clockOffset += value; },
     failWrites() { setFailure = 2; }
   };
 }

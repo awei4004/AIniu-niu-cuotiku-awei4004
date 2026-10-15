@@ -1,8 +1,8 @@
 # 小学生语文数学错题知识库
 
-这是一个原生微信小程序项目，当前已实现阶段一至阶段三的演示闭环：学生管理、手动错题库、同类题生成确认、在线练习和复习记录。
+这是一个原生微信小程序项目，当前已实现阶段一至阶段四的演示闭环：学生管理、手动错题库、同类题生成确认、在线练习、复习记录和图片 OCR 录入。
 
-阶段三当前使用明确标记的模板出题适配器，尚未调用真实 AI 模型。页面显示“演示出题”，本地模式与云函数使用相同规则；真实模型调用预留在 `cloudfunctions/api/ai-adapter.js`。
+阶段三当前使用明确标记的模板出题适配器，尚未调用真实 AI 模型。阶段四本地模式使用明确标记的演示识别；云端已预留腾讯云 OCR 适配器，只有配置云函数环境变量后才调用真实 OCR。
 
 ## 用微信开发者工具打开
 
@@ -10,7 +10,7 @@
 2. 选择“导入项目”。
 3. 选择本项目目录 `D:\workplace\微信小程序期末作业`。
 4. 如果暂时没有真实 AppID，可以先使用游客 AppID 运行界面和本地演示模式。
-5. 编译后进入首页，添加学生并录入错题；在错题详情中点击“生成同类题”，编辑并确认候选题后完成练习。
+5. 编译后进入首页，添加学生并录入错题；在录入页可以拍照/选图，或在错题详情中点击“生成同类题”继续阶段三流程。
 
 ## 当前运行模式
 
@@ -26,9 +26,9 @@ module.exports = {
 };
 ```
 
-`cloudEnvId` 为空时，用户、学生、错题、生成题、生成任务和复习记录保存在微信开发者工具的本地缓存中，适合没有云环境时演示。
+`cloudEnvId` 为空时，用户、学生、错题、原图登记、生成题、生成任务和复习记录保存在微信开发者工具的本地缓存中，适合没有云环境时演示。
 
-配置真实云开发环境后，将其替换为云环境 ID：
+配置真实云开发环境后，将其替换为云环境 ID，并在云函数环境变量中配置 OCR 服务：
 
 ```js
 module.exports = {
@@ -39,11 +39,12 @@ module.exports = {
 然后在微信开发者工具中：
 
 1. 开通并选择云开发环境。
-2. 创建 `users`、`students`、`wrong_questions`、`generated_questions`、`practice_records` 和 `tasks` 数据库集合。
-3. 在根目录运行 `npm.cmd run build`，同步本地与云函数共用的出题、校验和判题规则。
-4. 上传并部署 `cloudfunctions/api` 云函数，选择“云端安装依赖”。
-5. 将数据库客户端权限设置为仅云函数可读写，业务接口中的归属校验负责区分用户。
-6. 运行小程序并检查学生、错题、生成题和复习记录。云环境配置只切换运行模式，本地缓存数据不会自动迁移。
+2. 创建 `users`、`students`、`wrong_questions`、`generated_questions`、`practice_records`、`tasks` 和 `files` 数据库集合。
+3. 在云函数环境变量中配置 `OCR_PROVIDER=tencent`、`TENCENT_SECRET_ID`、`TENCENT_SECRET_KEY`，可选配置 `TENCENT_OCR_REGION` 和 `TENCENT_SESSION_TOKEN`。
+4. 在根目录运行 `npm.cmd run build`，同步本地与云函数共用的出题、图片校验和判题规则。
+5. 上传并部署 `cloudfunctions/api` 云函数，选择“云端安装依赖”。
+6. 将数据库客户端权限设置为仅云函数可读写，业务接口中的归属校验负责区分用户。
+7. 运行小程序并检查学生、错题、原图、生成题和复习记录。云环境配置只切换运行模式，本地缓存数据不会自动迁移。
 
 云端业务默认通过云函数访问，`wrong_questions` 使用软删除；删除学生前会检查关联错题、未删除生成题和历史练习记录。阶段三生成批次保存和练习提交使用数据库事务。
 
@@ -60,11 +61,17 @@ miniprogram/                        小程序前端
   pages/students/                   学生管理
   services/api.js                   云端/本地统一调用
   services/practice-domain.js       共用出题、JSON 校验、快照和判题规则
+  services/image-domain.js          图片大小、格式、OCR 结果和原图绑定规则
+  services/image-client.js          选图、上传进度和 OCR 页面调用
   utils/storage.js                  本地演示存储
 cloudfunctions/api/                 学生、错题、生成题和练习云函数
+  image-service.js                   文件登记、归属检查、OCR 任务和临时访问地址
+  ocr-adapter.js                    腾讯云 OCR 服务端签名适配器
 tests/student-api.test.js           学生和错题数据生命周期测试
 tests/practice-api.test.js          本地/云函数模拟接口测试
 tests/practice-pages.test.js        页面事件和闭环调用测试
+tests/image-api.test.js              图片/OCR 本地与云函数模拟测试
+tests/ocr-adapter.test.js            OCR 签名和服务端输出边界测试
 scripts/sync-domain.js              同步云函数规则模块
 scripts/check.js                    语法与微信模板编译检查
 ```
@@ -78,7 +85,7 @@ npm.cmd test
 npm.cmd run check
 ```
 
-`npm.cmd test` 验证学生、错题和阶段三闭环；云函数测试使用模拟数据库，页面测试使用模拟微信运行环境。`npm.cmd run check` 使用 Node 和微信开发者工具自带编译器检查 JavaScript、WXML 和 WXSS。测试和检查前会自动同步云函数规则模块。
+`npm.cmd test` 验证学生、错题、阶段三闭环和阶段四图片/OCR流程；云函数测试使用模拟数据库，页面测试使用模拟微信运行环境。`npm.cmd run check` 使用 Node 和微信开发者工具自带编译器检查 JavaScript、WXML 和 WXSS。测试和检查前会自动同步云函数规则模块。
 
 这些检查不代替真机界面验证或真实云环境部署验证。
 
@@ -113,3 +120,5 @@ npm.cmd run check
 演示出题只在有限模板范围内运行，不支持阅读理解、作文、复杂公式或复杂几何。图片 OCR 属于阶段四，打印文档属于阶段五。
 
 阶段三的接口、状态规则和详细验收步骤见 [阶段三说明.md](阶段三说明.md)。
+
+阶段四的图片格式校验、上传、OCR 任务、人工校对、原图查看和真实 OCR 配置见 [阶段四说明.md](阶段四说明.md)。默认本地演示不会调用真实 OCR；图片 OCR 和打印文档属于不同能力，PDF 导出仍需后续阶段实现。

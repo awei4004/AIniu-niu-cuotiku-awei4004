@@ -4,8 +4,12 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..');
-const wcc = 'D:\\微信web开发者工具\\code\\package.nw\\node_modules\\wcc-exec\\wcc.exe';
-const wcsc = 'D:\\微信web开发者工具\\code\\package.nw\\node_modules\\wcc-exec\\wcsc.exe';
+const compilerDirectory = [
+  'D:\\微信web开发者工具\\code\\package.nw\\node_modules\\wcc-exec',
+  'D:\\微信web开发者工具\\resources\\app.asar.unpacked\\node_modules\\wcc-exec'
+].find((directory) => ['wcc.exe', 'wcsc.exe'].every((file) => fs.existsSync(path.join(directory, file))));
+const wcc = compilerDirectory && path.join(compilerDirectory, 'wcc.exe');
+const wcsc = compilerDirectory && path.join(compilerDirectory, 'wcsc.exe');
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -22,7 +26,7 @@ const wxssFiles = files.filter((file) => file.endsWith('.wxss'));
 
 jsFiles.forEach((file) => execFileSync(process.execPath, ['--check', file], { stdio: 'inherit' }));
 
-if (fs.existsSync(wcc)) {
+if (compilerDirectory) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wrong-question-wxml-'));
   wxmlFiles.forEach((file, index) => {
     execFileSync(wcc, [file, '-o', path.join(tempDir, `${index}.js`)], { stdio: 'pipe' });

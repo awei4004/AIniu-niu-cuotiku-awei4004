@@ -109,3 +109,10 @@
   color: #8a92a1;
   text-align: center;
 }
+.detail-source-image {
+  display: block;
+  width: 100%;
+  height: 360rpx;
+  background: #f7f8fa;
+  margin-top: 12rpx;
+}

@@ -4,6 +4,7 @@ const QUESTIONS_KEY = 'local_wrong_questions';
 const GENERATED_QUESTIONS_KEY = 'local_generated_questions';
 const PRACTICE_RECORDS_KEY = 'local_practice_records';
 const TASKS_KEY = 'local_tasks';
+const FILES_KEY = 'local_files';
 
 function getUser() {
   return wx.getStorageSync(USER_KEY) || null;
@@ -79,6 +80,8 @@ module.exports = {
   savePracticeRecords,
   getTasks: () => wx.getStorageSync(TASKS_KEY) || [],
   saveTasks: (tasks) => wx.setStorageSync(TASKS_KEY, tasks),
+  getFiles: () => wx.getStorageSync(FILES_KEY) || [],
+  saveFiles: (files) => wx.setStorageSync(FILES_KEY, files),
   makeId,
   ensureUser
 };

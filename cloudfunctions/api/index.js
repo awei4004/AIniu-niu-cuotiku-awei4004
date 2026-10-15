@@ -2,11 +2,15 @@ const cloud = require('wx-server-sdk');
 const domain = require('./practice-domain');
 const aiAdapter = require('./ai-adapter');
 const crypto = require('crypto');
+const imageRules = require('./image-domain');
+const ocrAdapter = require('./ocr-adapter');
+const { createService } = require('./image-service');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database({ throwOnNotFound: false });
 const _ = db.command;
+const images = createService({ cloud, db, adapter: ocrAdapter });
 
 exports.main = async (event = {}) => {
   const traceId = event.requestId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -26,6 +30,7 @@ exports.main = async (event = {}) => {
 };
 
 async function dispatch(action, data, user) {
+  if (images.actions.includes(action)) return images.call(action, data, user);
   switch (action) {
     case 'user.bootstrap':
       return bootstrap(user);
@@ -182,6 +187,21 @@ async function deleteStudent(user, data) {
 async function createQuestion(user, data) {
   const fields = await validateQuestion(user, data);
   const now = new Date();
+  if (data.requestId !== undefined) {
+    const requestId = imageRules.requestId(data.requestId);
+    const id = crypto.createHash('sha256').update(JSON.stringify([user._id, 'question', requestId])).digest('hex');
+    return db.runTransaction(async (transaction) => {
+      const { data: existing } = await transaction.collection('wrong_questions').doc(id).get();
+      if (existing) {
+        if (existing.requestFingerprint !== JSON.stringify(fields)) throw makeError('CONFLICT', '该保存请求已完成，请返回错题库查看');
+        return existing;
+      }
+      const document = Object.assign({}, fields, { ownerId: user._id, version: 1, requestId,
+        requestFingerprint: JSON.stringify(fields), createdAt: now, updatedAt: now });
+      await transaction.collection('wrong_questions').doc(id).set({ data: document });
+      return Object.assign({ _id: id }, document);
+    });
+  }
   const created = await db.collection('wrong_questions').add({
     data: Object.assign({}, fields, {
       ownerId: user._id,
@@ -215,15 +235,22 @@ async function listQuestions(user, data) {
 
 async function updateQuestion(user, data) {
   const current = await getOwnedQuestion(user, data.questionId);
-  const fields = await validateQuestion(user, data);
+  const fields = await validateQuestion(user, data, current);
   const now = new Date();
-  const contentChanged = ['studentId', 'subject', 'questionText', 'correctAnswer', 'analysis',
-    'knowledgePoints', 'difficulty', 'questionType'].some((key) => current[key] !== fields[key]);
-  const version = (current.version || 1) + (contentChanged ? 1 : 0);
-  await db.collection('wrong_questions').doc(current._id).update({
-    data: Object.assign({}, fields, { updatedAt: now, version })
+  return db.runTransaction(async (transaction) => {
+    const { data: latest } = await transaction.collection('wrong_questions').doc(current._id).get();
+    if (!latest || latest.ownerId !== user._id || latest.deletedAt) throw makeError('NOT_FOUND', '错题不存在');
+    if (data.expectedVersion !== undefined && data.expectedVersion !== (latest.version || 1)) {
+      throw makeError('CONFLICT', '错题已在其他页面修改，请重新打开后编辑');
+    }
+    const contentChanged = ['studentId', 'subject', 'questionText', 'correctAnswer', 'analysis',
+      'knowledgePoints', 'difficulty', 'questionType', 'sourceFileId'].some((key) => (latest[key] || '') !== (fields[key] || ''));
+    const version = (latest.version || 1) + (contentChanged ? 1 : 0);
+    await transaction.collection('wrong_questions').doc(current._id).update({
+      data: Object.assign({}, fields, { updatedAt: now, version })
+    });
+    return Object.assign({}, latest, fields, { updatedAt: now, version });
   });
-  return Object.assign({}, current, fields, { updatedAt: now, version });
 }
 
 async function deleteQuestion(user, data) {
@@ -422,7 +449,7 @@ async function getOwnedGeneratedQuestion(user, generatedQuestionId) {
   return result.data[0];
 }
 
-async function validateQuestion(user, data) {
+async function validateQuestion(user, data, current = {}) {
   const studentId = String(data.studentId || '').trim();
   const subject = String(data.subject || '').trim();
   const questionText = String(data.questionText || '').trim();
@@ -440,7 +467,7 @@ async function validateQuestion(user, data) {
   if (questionType && !allowedTypes.includes(questionType)) throw makeError('VALIDATION_ERROR', '题型不正确');
   if (!allowedDifficulties.includes(difficulty)) throw makeError('VALIDATION_ERROR', '难度不正确');
   if (!allowedMastery.includes(mastery)) throw makeError('VALIDATION_ERROR', '掌握状态不正确');
-  return {
+  return Object.assign({
     studentId,
     subject,
     grade: student.grade,
@@ -454,7 +481,7 @@ async function validateQuestion(user, data) {
     knowledgePoints: String(data.knowledgePoints || '').trim().slice(0, 500),
     difficulty,
     mastery
-  };
+  }, await images.questionImage(user, data, current));
 }
 
 function validateStudent(data) {
@@ -492,6 +519,7 @@ function makeError(code, message) {
 function publicMessage(error) {
   if (error && error.code === 'HAS_RELATED_DATA') return error.message;
   if (error && ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHENTICATED', 'INVALID_STATUS',
-    'SOURCE_CHANGED', 'QUESTION_CHANGED', 'UNSUPPORTED_GENERATION', 'INVALID_AI_OUTPUT'].includes(error.code)) return error.message;
+    'SOURCE_CHANGED', 'QUESTION_CHANGED', 'UNSUPPORTED_GENERATION', 'INVALID_AI_OUTPUT',
+    'FILE_INVALID', 'CONFLICT'].includes(error.code)) return error.message;
   return '服务暂时不可用，请稍后重试';
 }

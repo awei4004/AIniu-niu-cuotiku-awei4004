@@ -1,5 +1,7 @@
 const storage = require('../utils/storage');
 const domain = require('./practice-domain');
+const images = require('./image-local');
+const imageRules = require('./image-domain');
 
 function getAppState() {
   try {
@@ -33,6 +35,7 @@ function call(action, data = {}) {
 
 function localCall(action, data) {
   const user = storage.ensureUser();
+  if (images.actions.includes(action)) return images.call(action, data, user);
 
   if (action === 'user.bootstrap') {
     const students = storage.getStudents().filter((item) => item.ownerId === user._id);
@@ -109,6 +112,14 @@ function localCall(action, data) {
 
   if (action === 'question.create') {
     const fields = validateQuestion(data, user);
+    const requestId = data.requestId === undefined ? '' : imageRules.requestId(data.requestId);
+    if (requestId) {
+      const existing = storage.getQuestions().find((item) => item.ownerId === user._id && item.requestId === requestId);
+      if (existing) {
+        if (existing.requestFingerprint !== JSON.stringify(fields)) throw createError('CONFLICT', '该保存请求已完成，请返回错题库查看');
+        return existing;
+      }
+    }
     const now = Date.now();
     const question = Object.assign({
       _id: storage.makeId('question'),
@@ -117,6 +128,7 @@ function localCall(action, data) {
       updatedAt: now,
       version: 1
     }, fields);
+    if (requestId) Object.assign(question, { requestId, requestFingerprint: JSON.stringify(fields) });
     const questions = storage.getQuestions();
     questions.unshift(question);
     storage.saveQuestions(questions);
@@ -142,10 +154,13 @@ function localCall(action, data) {
   if (action === 'question.update') {
     const questions = storage.getQuestions();
     const current = getOwnedQuestion(questions, user, data.questionId);
-    const fields = validateQuestion(data, user);
+    const fields = validateQuestion(data, user, current);
+    if (data.expectedVersion !== undefined && data.expectedVersion !== (current.version || 1)) {
+      throw createError('CONFLICT', '错题已在其他页面修改，请重新打开后编辑');
+    }
     const index = questions.findIndex((item) => item._id === current._id);
     const contentChanged = ['studentId', 'subject', 'questionText', 'correctAnswer', 'analysis',
-      'knowledgePoints', 'difficulty', 'questionType'].some((key) => current[key] !== fields[key]);
+      'knowledgePoints', 'difficulty', 'questionType', 'sourceFileId'].some((key) => (current[key] || '') !== (fields[key] || ''));
     questions[index] = Object.assign({}, current, fields, {
       updatedAt: Date.now(), version: (current.version || 1) + (contentChanged ? 1 : 0)
     });
@@ -314,7 +329,7 @@ function createError(code, message) {
   return error;
 }
 
-function validateQuestion(data, user) {
+function validateQuestion(data, user, current = {}) {
   const studentId = String(data.studentId || '').trim();
   const subject = String(data.subject || '').trim();
   const questionText = String(data.questionText || '').trim();
@@ -333,7 +348,7 @@ function validateQuestion(data, user) {
   if (questionType && !allowedTypes.includes(questionType)) throw createError('VALIDATION_ERROR', '题型不正确');
   if (!allowedDifficulties.includes(difficulty)) throw createError('VALIDATION_ERROR', '难度不正确');
   if (!allowedMastery.includes(mastery)) throw createError('VALIDATION_ERROR', '掌握状态不正确');
-  return {
+  return Object.assign({
     studentId,
     subject,
     grade: student.grade,
@@ -347,7 +362,7 @@ function validateQuestion(data, user) {
     knowledgePoints: String(data.knowledgePoints || '').trim().slice(0, 500),
     difficulty,
     mastery
-  };
+  }, images.questionImage(user, data, current));
 }
 
 function getOwnedQuestion(questions, user, questionId) {

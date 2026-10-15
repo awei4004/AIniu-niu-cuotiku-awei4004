@@ -18,6 +18,33 @@
       <view class="picker-input"><text>{{subjectOptions[subjectIndex].label}}</text><text class="picker-arrow">⌄</text></view>
     </picker>
 
+    <view class="image-section">
+      <view class="image-heading"><text class="form-section-title">错题原图</text><text class="image-meta">JPG / PNG · ≤ 5 MB</text></view>
+      <view class="image-actions">
+        <button class="secondary-button image-command" data-source="camera" bindtap="choosePhoto" disabled="{{imageBusy || ocrBusy || ocrUncertain || saving}}">拍照</button>
+        <button class="secondary-button image-command" data-source="album" bindtap="choosePhoto" disabled="{{imageBusy || ocrBusy || ocrUncertain || saving}}">从相册选择</button>
+      </view>
+      <image wx:if="{{imageUrl}}" class="source-image" src="{{imageUrl}}" data-src="{{imageUrl}}" mode="aspectFit" bindtap="previewImage" binderror="onImageError" />
+      <view wx:if="{{imageBusy}}" class="upload-state">
+        <text>正在处理原图 {{uploadProgress}}%</text>
+        <progress percent="{{uploadProgress}}" activeColor="#1f6feb" stroke-width="4" />
+      </view>
+      <text class="error-text" wx:if="{{imageError}}">{{imageError}}</text>
+      <view class="image-actions" wx:if="{{sourceFileId || uploadPending}}">
+        <button wx:if="{{uploadPending && !imageBusy}}" class="secondary-button image-command" bindtap="retryUpload" disabled="{{saving}}">重试上传</button>
+        <button wx:if="{{sourceFileId && imageError}}" class="secondary-button image-command" bindtap="retryImage" disabled="{{imageBusy || saving}}">重新加载原图</button>
+        <button wx:if="{{sourceFileId}}" class="primary-button image-command" loading="{{ocrBusy}}" disabled="{{ocrBusy || imageBusy || saving}}" bindtap="recognizeImage">{{ocrUncertain ? '查询识别任务' : cloudMode ? '识别文字' : '演示识别'}}</button>
+        <button class="danger-button image-command" bindtap="removeImage" disabled="{{imageBusy || ocrBusy || ocrUncertain || saving}}">移除原图</button>
+      </view>
+      <text class="ocr-status" wx:if="{{ocrStatus}}">{{ocrStatus}}</text>
+      <text class="error-text" wx:if="{{ocrError}}">{{ocrError}}</text>
+      <view class="ocr-candidate" wx:if="{{candidateTaskId}}">
+        <text class="form-label">识别文本校对</text>
+        <textarea class="textarea-input question-textarea" maxlength="5000" value="{{ocrText}}" bindinput="changeOcrText" />
+        <button class="secondary-button apply-button" bindtap="applyOcr" disabled="{{ocrBusy || saving || !ocrText}}">确认校对并填入题目</button>
+      </view>
+    </view>
+
     <text class="form-label required-label">题目内容</text>
     <textarea class="textarea-input question-textarea" maxlength="5000" placeholder="请输入完整题目，支持换行" value="{{questionText}}" data-field="questionText" bindinput="onInput" />
 
@@ -57,7 +84,7 @@
     </picker>
 
     <text class="error-text" wx:if="{{formError}}">{{formError}}</text>
-    <button class="primary-button save-button" loading="{{saving}}" disabled="{{saving || loading}}" bindtap="saveQuestion">保存错题</button>
+    <button class="primary-button save-button" loading="{{saving}}" disabled="{{saving || loading || imageBusy || ocrBusy}}" bindtap="saveQuestion">保存错题</button>
   </view>
 
   <view class="loading-text" wx:if="{{loading}}">正在加载表单…</view>

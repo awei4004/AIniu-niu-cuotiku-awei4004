@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-fs.copyFileSync(path.join(root, 'miniprogram/services/practice-domain.js'),
-  path.join(root, 'cloudfunctions/api/practice-domain.js'));
-console.log('出题和判题规则已同步至云函数');
+['practice-domain', 'image-domain'].forEach((name) => {
+  fs.copyFileSync(path.join(root, `miniprogram/services/${name}.js`),
+    path.join(root, `cloudfunctions/api/${name}.js`));
+});
+console.log('出题、判题与图片校验规则已同步至云函数');

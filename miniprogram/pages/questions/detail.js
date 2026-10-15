@@ -15,7 +15,8 @@ Page({
     masteryOptions: MASTERY_OPTIONS,
     masteryIndex: 0,
     loading: true,
-    deleting: false
+    deleting: false,
+    imageUrl: '', imageError: '', imageLoading: false
   },
 
   onLoad(options) {
@@ -47,6 +48,7 @@ Page({
         masteryIndex: Math.max(0, MASTERY_OPTIONS.findIndex((item) => item.value === question.mastery)),
         loading: false
       });
+      this.loadImage(question.sourceFileId);
     }).catch((error) => {
       this.setData({ loading: false });
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
@@ -56,6 +58,34 @@ Page({
   editQuestion() {
     wx.navigateTo({ url: `/pages/questions/form?id=${this.data.questionId}` });
   },
+
+  loadImage(fileId) {
+    this.imageFileId = fileId;
+    if (!fileId) { this.setData({ imageUrl: '', imageError: '', imageLoading: false }); return Promise.resolve(); }
+    this.setData({ imageLoading: true, imageError: '', imageUrl: '' });
+    return api.call('file.access', { fileId }).then((result) => {
+      if (this.imageFileId === fileId) this.setData({ imageUrl: result.url });
+    }).catch((error) => {
+      if (this.imageFileId === fileId) this.setData({ imageError: error.message || '原图暂时无法查看' });
+    }).finally(() => {
+      if (this.imageFileId === fileId) this.setData({ imageLoading: false });
+    });
+  },
+
+  onImageError(event) {
+    if (event.currentTarget.dataset.src !== this.data.imageUrl) return;
+    this.setData({ imageUrl: '', imageError: '原图加载失败，请重新加载；本地图片若已被清理，请编辑错题并重新选择图片' });
+  },
+
+  previewImage() {
+    if (this.data.imageLoading || !this.data.question) return;
+    this.loadImage(this.data.question.sourceFileId).then(() => {
+      if (this.data.imageUrl) wx.previewImage({ urls: [this.data.imageUrl],
+        fail: () => this.setData({ imageError: '原图暂时无法预览，请重新加载' }) });
+    });
+  },
+
+  retryImage() { this.loadImage(this.data.question.sourceFileId); },
 
   generateSimilar() {
     wx.navigateTo({ url: `/pages/generation/index?sourceQuestionId=${this.data.questionId}` });
@@ -67,7 +97,7 @@ Page({
     const question = this.data.question;
     if (!question || mastery === question.mastery) return;
     this.setData({ masteryIndex });
-    api.call('question.update', Object.assign({}, question, { mastery })).then((updated) => {
+    api.call('question.update', Object.assign({}, question, { mastery, expectedVersion: question.version || 1 })).then((updated) => {
       this.setData({ question: Object.assign({}, updated, {
         subjectLabel: updated.subject === 'math' ? '数学' : '语文',
         difficultyLabel: getDifficultyLabel(updated.difficulty),
