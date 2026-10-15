@@ -16,6 +16,7 @@ function call(action, data = {}) {
   if (getAppState().cloudEnabled && wx.cloud) {
     return wx.cloud.callFunction({
       name: 'api',
+      config: { timeout: action === 'generation.create' ? 75000 : 30000 },
       data: {
         action,
         data
@@ -36,6 +37,13 @@ function call(action, data = {}) {
 
 function localCall(action, data) {
   const user = storage.ensureUser();
+  if (action === 'generation.config') return { provider: 'demo', ready: true };
+  if (action === 'task.get' && data.type === 'generation') {
+    const task = storage.getTasks().find((item) => item.ownerId === user._id && item.type === 'generation'
+      && (data.taskId ? item._id === data.taskId : item.requestId === data.requestId));
+    if (!task) throw createError('NOT_FOUND', '任务不存在');
+    return task;
+  }
   if (exportsService.actions.includes(action) || action === 'task.get' && data.type === 'export') return exportsService.call(action, data, user);
   if (images.actions.includes(action)) return images.call(action, data, user);
 
@@ -162,7 +170,8 @@ function localCall(action, data) {
     }
     const index = questions.findIndex((item) => item._id === current._id);
     const contentChanged = ['studentId', 'subject', 'questionText', 'correctAnswer', 'analysis',
-      'knowledgePoints', 'difficulty', 'questionType', 'sourceFileId'].some((key) => (current[key] || '') !== (fields[key] || ''));
+      'knowledgePoints', 'difficulty', 'questionType', 'sourceFileId', 'errorReason', 'studentAnswer',
+      'chapter', 'grade'].some((key) => (current[key] || '') !== (fields[key] || ''));
     questions[index] = Object.assign({}, current, fields, {
       updatedAt: Date.now(), version: (current.version || 1) + (contentChanged ? 1 : 0)
     });
@@ -182,16 +191,27 @@ function localCall(action, data) {
   if (action === 'generation.create') {
     const source = getOwnedQuestion(storage.getQuestions(), user, data.sourceQuestionId);
     const options = domain.generationOptions(Object.assign({ difficulty: source.difficulty }, data));
+    const requestId = data.requestId === undefined ? storage.makeId('generation') : imageRules.requestId(data.requestId);
+    const previous = storage.getTasks().find((item) => item.ownerId === user._id
+      && item.type === 'generation' && item.requestId === requestId);
+    if (previous) {
+      if (previous.sourceQuestionId !== source._id || previous.sourceVersion !== domain.sourceVersion(source)
+        || JSON.stringify(previous.options) !== JSON.stringify(options)) throw createError('CONFLICT', '请求编号已用于其他出题内容');
+      if (previous.status === 'failed') throw createError(previous.errorCode, previous.error);
+      if (previous.status === 'running') throw createError('GENERATION_RUNNING', '出题仍在进行，请查询原任务');
+      return storage.getGeneratedQuestions().filter((item) => item.ownerId === user._id
+        && item.taskId === previous._id && item.status !== 'deleted');
+    }
     const task = { _id: storage.makeId('task'), ownerId: user._id, studentId: source.studentId,
       sourceQuestionId: source._id, sourceVersion: domain.sourceVersion(source),
-      type: 'generation', provider: 'demo', status: 'running', createdAt: Date.now() };
+      requestId, options, type: 'generation', provider: 'demo', status: 'running', createdAt: Date.now() };
     storage.saveTasks([task].concat(storage.getTasks()));
     let output;
     try {
       output = domain.validateOutput(domain.demoGenerate(source, options), source, options);
     } catch (error) {
       storage.saveTasks(storage.getTasks().map((item) => item._id === task._id
-        ? Object.assign({}, item, { status: 'failed', error: error.message, updatedAt: Date.now() }) : item));
+        ? Object.assign({}, item, { status: 'failed', errorCode: error.code, error: error.message, updatedAt: Date.now() }) : item));
       throw error;
     }
     const generated = output.map((item) => Object.assign({

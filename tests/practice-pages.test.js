@@ -5,17 +5,19 @@ const path = require('path');
 const vm = require('vm');
 const { createBackend } = require('./helpers/api-harness');
 
-function page(name, api) {
+function page(name, api, memory = new Map()) {
   let definition;
+  let sequence = 0;
   const navigation = [];
   const context = vm.createContext({
     require(id) {
       if (id.endsWith('/api')) return api;
-      if (id.endsWith('/storage')) return { makeId: () => `submission_${Date.now()}` };
+      if (id.endsWith('/storage')) return { makeId: () => `request_${++sequence}` };
       throw new Error(id);
     },
     Page(value) { definition = value; },
-    wx: { showToast() {}, showModal: ({ success }) => success({ confirm: true }),
+    wx: { getStorageSync: (key) => memory.get(key), setStorageSync: (key, value) => memory.set(key, value),
+      removeStorageSync: (key) => memory.delete(key), showToast() {}, showModal: ({ success }) => success({ confirm: true }),
       navigateTo: ({ url }) => navigation.push(url), switchTab: ({ url }) => navigation.push(url) }
   });
   vm.runInContext(fs.readFileSync(path.resolve(__dirname, `../miniprogram/pages/${name}/index.js`), 'utf8'), context);
@@ -32,6 +34,79 @@ function page(name, api) {
 }
 const event = (dataset) => ({ currentTarget: { dataset } });
 const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+test('generation page recovers a lost response after reentry without creating a second batch', async () => {
+  const backend = createBackend('local');
+  const student = await backend.call('student.create', { name: '恢复学生', grade: 3 });
+  const source = await backend.call('question.create', { studentId: student._id, subject: 'math', questionText: '23 × 14 =' });
+  const memory = new Map();
+  let calls = 0;
+  const api = { async call(action, data) {
+    const result = await backend.call(action, data);
+    if (action === 'generation.create') { calls += 1; throw { errMsg: 'network interrupted' }; }
+    return result;
+  } };
+  const first = page('generation', api, memory);
+  first.onLoad({ sourceQuestionId: source._id });
+  await settle();
+  await first.generate();
+  assert.equal(first.data.uncertain, true);
+  await first.generate();
+  assert.equal(calls, 1);
+  const restored = page('generation', api, memory);
+  restored.onLoad({ sourceQuestionId: source._id });
+  await settle();
+  assert.equal(restored.data.uncertain, false);
+  assert.equal(restored.data.questions.length, 3);
+  assert.equal(memory.size, 0);
+  assert.equal(calls, 1);
+});
+
+test('generation page marks real AI and disables generation when cloud AI is unconfigured', async () => {
+  const backend = createBackend('local');
+  const student = await backend.call('student.create', { name: '配置学生', grade: 3 });
+  const source = await backend.call('question.create', { studentId: student._id, subject: 'math', questionText: '23 × 14 =' });
+  for (const ready of [true, false]) {
+    const api = { call: (action, data) => action === 'generation.config'
+      ? Promise.resolve({ provider: 'openai-compatible', ready }) : backend.call(action, data) };
+    const instance = page('generation', api);
+    instance.onLoad({ sourceQuestionId: source._id });
+    await settle();
+    assert.equal(instance.data.providerLabel, ready ? 'AI 出题' : 'AI 待配置');
+    if (!ready) { await instance.generate(); assert.equal(instance.data.questions.length, 0); }
+  }
+});
+
+test('generation page recovers a request that never reached the server and clears explicit failures', async () => {
+  const backend = createBackend('local');
+  const student = await backend.call('student.create', { name: '中断学生', grade: 3 });
+  const source = await backend.call('question.create', { studentId: student._id, subject: 'math', questionText: '23 × 14 =' });
+  let first = true;
+  const api = { call(action, data) {
+    if (action === 'generation.create' && first) {
+      first = false;
+      return Promise.reject({ errMsg: 'request never sent' });
+    }
+    return backend.call(action, data);
+  } };
+  const instance = page('generation', api);
+  instance.onLoad({ sourceQuestionId: source._id });
+  await settle();
+  await instance.generate();
+  const originalId = instance.pending.requestId;
+  await instance.queryTask();
+  assert.equal(instance.data.uncertain, false);
+  assert.equal(instance.data.questions.length, 3);
+  assert.equal(backend.inspect('tasks')[0].requestId, originalId);
+  const failed = page('generation', { call: (action, data) => action === 'generation.create'
+    ? Promise.reject(Object.assign(new Error('认证失败'), { code: 'AI_AUTH_FAILED' })) : backend.call(action, data) });
+  failed.onLoad({ sourceQuestionId: source._id });
+  await settle();
+  await failed.generate();
+  assert.equal(failed.data.uncertain, false);
+  assert.equal(failed.pending, null);
+  assert.equal(failed.data.error, '认证失败');
+});
 
 test('pages support generation editing, practice, result and history navigation', async () => {
   const api = createBackend('local');

@@ -1,17 +1,24 @@
 const api = require('../../services/api');
+const storage = require('../../utils/storage');
 const difficulties = ['easy', 'normal', 'hard'];
+const terminalCodes = ['VALIDATION_ERROR', 'NOT_FOUND', 'CONFLICT', 'SOURCE_CHANGED', 'INVALID_AI_OUTPUT',
+  'UNSUPPORTED_GENERATION', 'AI_NOT_CONFIGURED', 'AI_AUTH_FAILED', 'AI_RATE_LIMITED', 'AI_CONFIG_ERROR', 'AI_PROVIDER_FAILED', 'AI_TIMEOUT'];
 
 Page({
   data: {
     sourceQuestionId: '', source: null, questions: [], loading: true, busy: false,
     count: 3, difficultyIndex: 1, difficultyLabels: ['基础', '一般', '提高'],
     editor: null, editorId: '', answerTypeIndex: 0,
-    answerTypeLabels: ['系统判定（唯一答案）', '家长判定（开放题）'], error: ''
+    answerTypeLabels: ['系统判定（唯一答案）', '家长判定（开放题）'], error: '',
+    providerLabel: '正在检查', aiReady: false, uncertain: false
   },
 
   onLoad(options) {
     this.setData({ sourceQuestionId: options.sourceQuestionId || '' });
-    this.loadData();
+    this.pendingKey = `generation_pending_${this.data.sourceQuestionId}`;
+    this.pending = wx.getStorageSync(this.pendingKey) || null;
+    this.setData({ uncertain: Boolean(this.pending) });
+    this.loadData().then(() => { if (this.pending) return this.queryTask(); });
   },
 
   loadData() {
@@ -21,9 +28,11 @@ Page({
         this.setData({ error: error.message });
         return null;
       }),
-      api.call('generation.list', { sourceQuestionId: this.data.sourceQuestionId })
-    ]).then(([source, questions]) => {
-      this.setData({ source, questions, loading: false });
+      api.call('generation.list', { sourceQuestionId: this.data.sourceQuestionId }),
+      api.call('generation.config')
+    ]).then(([source, questions, config]) => {
+      this.setData({ source, questions, loading: false, aiReady: config.ready,
+        providerLabel: config.provider === 'demo' ? '演示出题' : config.ready ? 'AI 出题' : 'AI 待配置' });
     }).catch((error) => this.setData({ loading: false, error: error.message }));
   },
 
@@ -31,13 +40,48 @@ Page({
   changeDifficulty(event) { this.setData({ difficultyIndex: Number(event.detail.value) }); },
 
   generate() {
-    if (this.data.busy || !this.data.source) return;
+    if (this.data.busy || this.data.uncertain || !this.data.source || !this.data.aiReady) return;
+    this.pending = { sourceQuestionId: this.data.sourceQuestionId, requestId: storage.makeId('generation'),
+      count: this.data.count, difficulty: difficulties[this.data.difficultyIndex] };
+    wx.setStorageSync(this.pendingKey, this.pending);
     this.setData({ busy: true, error: '' });
-    api.call('generation.create', {
-      sourceQuestionId: this.data.sourceQuestionId,
-      count: this.data.count, difficulty: difficulties[this.data.difficultyIndex]
-    }).then(() => this.loadData())
-      .catch((error) => this.setData({ error: error.message }))
+    return api.call('generation.create', this.pending).then(() => {
+      this.clearPending();
+      return this.loadData();
+    }).catch((error) => this.generationFailure(error))
+      .finally(() => this.setData({ busy: false }));
+  },
+
+  clearPending() {
+    this.pending = null;
+    wx.removeStorageSync(this.pendingKey);
+    this.setData({ uncertain: false });
+  },
+
+  generationFailure(error) {
+    if (terminalCodes.includes(error.code)) this.clearPending();
+    else this.setData({ uncertain: true });
+    this.setData({ error: error.message || error.errMsg || '出题结果尚未确认，请查询原任务' });
+  },
+
+  queryTask() {
+    if (this.data.busy || !this.pending) return;
+    this.setData({ busy: true, error: '' });
+    const request = this.pending;
+    return api.call('task.get', { type: 'generation', requestId: request.requestId })
+      .catch((error) => {
+        if (error.code !== 'NOT_FOUND') throw error;
+        // Reuse the same ID when the original request never reached the server.
+        return api.call('generation.create', request).then(() => ({ status: 'completed' }));
+      }).then((task) => {
+        if (task.status === 'running') {
+          this.setData({ uncertain: true, error: '出题仍在进行，请稍后查询原任务' });
+          return;
+        }
+        this.clearPending();
+        if (task.status === 'failed') this.setData({ error: task.error || '出题失败，请重新生成' });
+        else return this.loadData();
+      }).catch((error) => this.generationFailure(error))
       .finally(() => this.setData({ busy: false }));
   },
 

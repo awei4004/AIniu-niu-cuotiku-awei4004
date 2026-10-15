@@ -14,6 +14,38 @@ async function fixture(mode, override = {}) {
 }
 
 for (const mode of ['local', 'cloud']) {
+  test(`${mode}: generation request IDs recover results and isolate failed tasks`, async () => {
+    const { api, source } = await fixture(mode);
+    const request = { sourceQuestionId: source._id, count: 1, requestId: 'generation-recovery' };
+    const [first] = await api.call('generation.create', request);
+    assert.equal((await api.call('generation.create', request))[0]._id, first._id);
+    assert.equal(api.inspect('generated_questions').length, 1);
+    await assert.rejects(api.call('generation.create', { ...request, count: 2 }), code('CONFLICT'));
+    const task = await api.call('task.get', { type: 'generation', requestId: request.requestId });
+    assert.equal(task.status, 'completed');
+    await assert.rejects(api.call('task.get', { type: 'generation', requestId: 'missing-request' }), code('NOT_FOUND'));
+    const unsupported = await api.call('question.create', { studentId: source.studentId, subject: 'math', questionText: '1.2 + 3.4 =' });
+    const failedRequest = { sourceQuestionId: unsupported._id, requestId: 'generation-failure' };
+    await assert.rejects(api.call('generation.create', failedRequest), code('UNSUPPORTED_GENERATION'));
+    await assert.rejects(api.call('generation.create', failedRequest), code('UNSUPPORTED_GENERATION'));
+    assert.equal(api.inspect('tasks').length, 2);
+    api.switchUser('other-owner');
+    await assert.rejects(api.call('task.get', { type: 'generation', taskId: task._id }), code('NOT_FOUND'));
+  });
+
+  test(`${mode}: teaching context edits invalidate candidates while mastery updates preserve them`, async () => {
+    const { api, source } = await fixture(mode);
+    let current = source;
+    for (const values of [{ errorReason: '漏加进位' }, { studentAnswer: '332' }, { chapter: '乘法单元' }]) {
+      const [candidate] = await api.call('generation.create', { sourceQuestionId: source._id });
+      current = await api.call('question.update', { ...current, ...values, questionId: source._id });
+      await assert.rejects(api.call('generation.confirm', { generatedQuestionId: candidate._id }), code('SOURCE_CHANGED'));
+    }
+    const [candidate] = await api.call('generation.create', { sourceQuestionId: source._id });
+    await api.call('question.update', { ...current, mastery: 'reviewing', questionId: source._id });
+    assert.equal((await api.call('generation.confirm', { generatedQuestionId: candidate._id })).status, 'confirmed');
+  });
+
   test(`${mode}: generate, edit, confirm, practice and preserve history`, async () => {
     const { api, source, student } = await fixture(mode);
     const questions = await api.call('generation.create', { sourceQuestionId: source._id, count: 3, difficulty: 2 });

@@ -13,6 +13,8 @@ function createBackend(mode) {
   let sequence = 0;
   let setFailure = 0;
   let adapter = async (source, options) => domain.demoGenerate(source, options);
+  let aiProvider = 'demo';
+  let aiCalls = 0;
   let ocrAdapter = async () => ({ provider: 'tencent', text: '23 × 14 =' });
   let ocrCalls = 0;
   let pdfCalls = 0;
@@ -133,7 +135,8 @@ function createBackend(mode) {
     cache.set(file, module);
     const requireFile = (id) => {
       if (id === 'wx-server-sdk') return cloud;
-      if (id === './ai-adapter') return { provider: 'demo', generate: (...args) => adapter(...args) };
+      if (id === './ai-adapter') return { provider: () => aiProvider, status: () => ({ provider: aiProvider, ready: true }),
+        generate: (...args) => { aiCalls += 1; return adapter(...args); } };
       if (id === './ocr-adapter') return { provider: () => 'tencent', recognize: (...args) => { ocrCalls += 1; return ocrAdapter(...args); } };
       if (id === './pdf-renderer') return { render: (...args) => { pdfCalls += 1; return pdfRenderer(...args); } };
       if (!id.startsWith('.')) return require(id);
@@ -158,7 +161,8 @@ function createBackend(mode) {
       if (mode === 'local') memory.set('local_user', { _id: value, currentStudentId: '' });
     },
     inspect: (name) => clone(mode === 'local' ? memory.get(keys[name]) || [] : rows(name)),
-    setAdapter(value) { adapter = value; },
+    setAdapter(value, provider = 'demo') { adapter = value; aiProvider = provider; },
+    aiCalls: () => aiCalls,
     setOcrAdapter(value) { ocrAdapter = value; },
     ocrCalls: () => ocrCalls,
     setPdfRenderer(value) { pdfRenderer = value; },

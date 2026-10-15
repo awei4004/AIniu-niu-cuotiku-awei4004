@@ -7,6 +7,7 @@ const ocrAdapter = require('./ocr-adapter');
 const { createService } = require('./image-service');
 const { createService: createExportService } = require('./export-service');
 const pdfRenderer = require('./pdf-renderer');
+const { createService: createGenerationService } = require('./generation-service');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -14,6 +15,7 @@ const db = cloud.database({ throwOnNotFound: false });
 const _ = db.command;
 const images = createService({ cloud, db, adapter: ocrAdapter });
 const exportsService = createExportService({ cloud, db, renderer: pdfRenderer });
+const generations = createGenerationService({ db, adapter: aiAdapter, getSource: getOwnedQuestion, publicMessage });
 
 exports.main = async (event = {}) => {
   const traceId = event.requestId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -33,6 +35,8 @@ exports.main = async (event = {}) => {
 };
 
 async function dispatch(action, data, user) {
+  if (action === 'generation.config') return generations.status();
+  if (action === 'task.get' && data.type === 'generation') return generations.getTask(user, data);
   if (exportsService.actions.includes(action) || action === 'task.get' && data.type === 'export') return exportsService.call(action, data, user);
   if (images.actions.includes(action)) return images.call(action, data, user);
   switch (action) {
@@ -59,7 +63,7 @@ async function dispatch(action, data, user) {
     case 'question.delete':
       return deleteQuestion(user, data);
     case 'generation.create':
-      return createGeneration(user, data);
+      return generations.create(user, data);
     case 'generation.list':
       return listGenerations(user, data);
     case 'generation.update':
@@ -248,7 +252,8 @@ async function updateQuestion(user, data) {
       throw makeError('CONFLICT', '错题已在其他页面修改，请重新打开后编辑');
     }
     const contentChanged = ['studentId', 'subject', 'questionText', 'correctAnswer', 'analysis',
-      'knowledgePoints', 'difficulty', 'questionType', 'sourceFileId'].some((key) => (latest[key] || '') !== (fields[key] || ''));
+      'knowledgePoints', 'difficulty', 'questionType', 'sourceFileId', 'errorReason', 'studentAnswer',
+      'chapter', 'grade'].some((key) => (latest[key] || '') !== (fields[key] || ''));
     const version = (latest.version || 1) + (contentChanged ? 1 : 0);
     await transaction.collection('wrong_questions').doc(current._id).update({
       data: Object.assign({}, fields, { updatedAt: now, version })
@@ -264,48 +269,6 @@ async function deleteQuestion(user, data) {
     data: { deletedAt: now, updatedAt: now }
   });
   return { deleted: true };
-}
-
-async function createGeneration(user, data) {
-  const source = await getOwnedQuestion(user, data.sourceQuestionId);
-  const options = domain.generationOptions(Object.assign({ difficulty: source.difficulty }, data));
-  const now = new Date();
-  const task = await db.collection('tasks').add({ data: {
-    ownerId: user._id, studentId: source.studentId, sourceQuestionId: source._id,
-    sourceVersion: domain.sourceVersion(source), type: 'generation', provider: aiAdapter.provider,
-    status: 'running', createdAt: now, updatedAt: now
-  } });
-  try {
-    const raw = await aiAdapter.generate(source, options);
-    const generated = domain.validateOutput(raw, source, options);
-    const results = generated.map((item) => Object.assign({}, item, {
-      _id: `generated_${crypto.randomBytes(12).toString('hex')}`,
-      ownerId: user._id, studentId: source.studentId, grade: source.grade, subject: source.subject,
-      sourceQuestionId: source._id, sourceQuestionUpdatedAt: source.updatedAt,
-      sourceVersion: domain.sourceVersion(source), taskId: task._id, provider: aiAdapter.provider,
-      status: 'draft', version: 1, createdAt: now, updatedAt: now
-    }));
-    await db.runTransaction(async (transaction) => {
-      const response = await transaction.collection('wrong_questions').doc(source._id).get();
-      const current = response.data;
-      if (!current || current.ownerId !== user._id || current.deletedAt) throw makeError('NOT_FOUND', '错题不存在');
-      domain.checkSource({ sourceVersion: domain.sourceVersion(source) }, current);
-      for (const item of results) {
-        const fields = Object.assign({}, item);
-        delete fields._id;
-        await transaction.collection('generated_questions').doc(item._id).set({ data: fields });
-      }
-      await transaction.collection('tasks').doc(task._id).update({ data: {
-        status: 'completed', generatedQuestionIds: results.map((item) => item._id), updatedAt: new Date()
-      } });
-    });
-    return results;
-  } catch (error) {
-    await db.collection('tasks').doc(task._id).update({ data: {
-      status: 'failed', error: publicMessage(error), updatedAt: new Date()
-    } });
-    throw error;
-  }
 }
 
 async function listGenerations(user, data) {
@@ -524,6 +487,8 @@ function publicMessage(error) {
   if (error && error.code === 'HAS_RELATED_DATA') return error.message;
   if (error && ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHENTICATED', 'INVALID_STATUS',
     'SOURCE_CHANGED', 'QUESTION_CHANGED', 'UNSUPPORTED_GENERATION', 'INVALID_AI_OUTPUT',
-    'FILE_INVALID', 'CONFLICT', 'EXPORT_LIMIT', 'PDF_FONT_MISSING'].includes(error.code)) return error.message;
+    'FILE_INVALID', 'CONFLICT', 'EXPORT_LIMIT', 'PDF_FONT_MISSING', 'AI_NOT_CONFIGURED',
+    'AI_AUTH_FAILED', 'AI_RATE_LIMITED', 'AI_CONFIG_ERROR', 'AI_PROVIDER_FAILED', 'AI_TIMEOUT',
+    'GENERATION_RUNNING'].includes(error.code)) return error.message;
   return '服务暂时不可用，请稍后重试';
 }
