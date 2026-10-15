@@ -48,7 +48,7 @@
 
   <view class="section-heading">
     <text class="section-title">错题记录</text>
-    <text class="section-caption">{{totalCount}} 道</text>
+    <button class="secondary-button export-entry" bindtap="openExport" disabled="{{loading || !students.length}}">导出 PDF</button>
   </view>
 
   <view class="surface empty-state" wx:if="{{!loading && !students.length}}">

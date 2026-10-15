@@ -120,6 +120,10 @@ Page({
 
   openDetail(event) {
     wx.navigateTo({ url: `/pages/questions/detail?id=${event.currentTarget.dataset.id}` });
+  },
+
+  openExport() {
+    wx.navigateTo({ url: `/pages/export/index${this.data.selectedStudentId ? '?studentId=' + this.data.selectedStudentId : ''}` });
   }
 });
 

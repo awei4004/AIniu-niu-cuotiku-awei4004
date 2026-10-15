@@ -2,5 +2,7 @@ node_modules/
 .npm-cache/
 project.private.config.json
 *.log
+tmp/
+output/pdf/
 miniprogram/services/student-domain.js
 cloudfunctions/api/student-domain.js

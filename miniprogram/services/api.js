@@ -2,6 +2,7 @@ const storage = require('../utils/storage');
 const domain = require('./practice-domain');
 const images = require('./image-local');
 const imageRules = require('./image-domain');
+const exportsService = require('./export-local');
 
 function getAppState() {
   try {
@@ -35,6 +36,7 @@ function call(action, data = {}) {
 
 function localCall(action, data) {
   const user = storage.ensureUser();
+  if (exportsService.actions.includes(action) || action === 'task.get' && data.type === 'export') return exportsService.call(action, data, user);
   if (images.actions.includes(action)) return images.call(action, data, user);
 
   if (action === 'user.bootstrap') {

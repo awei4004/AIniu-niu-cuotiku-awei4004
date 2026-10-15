@@ -24,6 +24,7 @@
 
     <view class="detail-student">{{student ? student.name : '未知学生'}} · 小学{{question.grade}}年级{{question.chapter ? ' · ' + question.chapter : ''}}</view>
     <button class="primary-button generate-button" bindtap="generateSimilar">生成同类题</button>
+    <button class="secondary-button" bindtap="exportQuestion">导出 PDF</button>
     <view class="detail-section">
       <text class="detail-section-title">题目内容</text>
       <text class="detail-content question-content">{{question.questionText}}</text>

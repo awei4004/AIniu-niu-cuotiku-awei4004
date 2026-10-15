@@ -59,6 +59,11 @@ Page({
     wx.navigateTo({ url: `/pages/questions/form?id=${this.data.questionId}` });
   },
 
+  exportQuestion() {
+    if (!this.data.question) return;
+    wx.navigateTo({ url: `/pages/export/index?studentId=${this.data.question.studentId}&questionId=${this.data.questionId}` });
+  },
+
   loadImage(fileId) {
     this.imageFileId = fileId;
     if (!fileId) { this.setData({ imageUrl: '', imageError: '', imageLoading: false }); return Promise.resolve(); }

@@ -7,6 +7,8 @@
   line-height: 68rpx;
 }
 
+.export-entry { padding: 0 20rpx; font-size: 24rpx; line-height: 60rpx; min-height: 60rpx; }
+
 .overview {
   padding: 28rpx;
 }

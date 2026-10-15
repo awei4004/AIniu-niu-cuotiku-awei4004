@@ -3,6 +3,7 @@
     "pages/questions/index",
     "pages/questions/form",
     "pages/questions/detail",
+    "pages/export/index",
     "pages/generation/index",
     "pages/practice/index",
     "pages/review/index",

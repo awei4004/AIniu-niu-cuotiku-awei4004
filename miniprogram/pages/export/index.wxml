@@ -1,0 +1,47 @@
+<view class="page export-page">
+  <view class="topbar"><text class="page-title">导出复习资料</text><text class="export-format">A4 · PDF</text></view>
+  <view wx:if="{{!students.length && !loading}}" class="empty-state">
+    <text class="empty-title">先添加学生</text><button class="primary-button" bindtap="openStudents">管理学生</button>
+  </view>
+  <block wx:if="{{students.length}}">
+    <view class="export-section">
+      <text class="export-heading">资料设置</text>
+      <text class="form-label">学生</text>
+      <picker range="{{studentLabels}}" value="{{studentIndex}}" bindchange="changeStudent" disabled="{{busy || loading}}"><view class="picker-input">{{studentLabels[studentIndex]}}</view></picker>
+      <text class="form-label">资料标题</text><input class="text-input" value="{{title}}" maxlength="40" bindinput="changeTitle" disabled="{{busy}}" />
+      <text class="form-label">版本</text>
+      <radio-group class="template-options" bindchange="changeTemplate">
+        <label><radio value="practice" checked="{{template === 'practice'}}" disabled="{{busy}}" color="#1f6feb" />练习版</label>
+        <label><radio value="analysis" checked="{{template === 'analysis'}}" disabled="{{busy}}" color="#1f6feb" />解析版</label>
+      </radio-group>
+      <view class="setting-row" wx:if="{{template === 'practice'}}"><text>每题答题留白</text><picker range="{{lineOptions}}" value="{{lineIndex}}" bindchange="changeLines" disabled="{{busy}}"><view class="inline-picker">{{lineOptions[lineIndex]}} ▾</view></picker></view>
+      <view class="setting-row" wx:else><text>附带错题原图</text><switch checked="{{includeImages}}" bindchange="changeImages" disabled="{{busy}}" color="#1f6feb" /></view>
+    </view>
+    <view class="export-section">
+      <view class="section-row"><text class="export-heading">选择错题</text><text class="selection-count">已选 {{selectedCount}} / 20</text></view>
+      <view class="selection-filters"><picker range="{{subjects}}" value="{{subjectIndex}}" bindchange="changeSubject" disabled="{{busy}}"><view class="inline-picker">{{subjects[subjectIndex]}} ▾</view></picker><input class="selection-search" placeholder="搜索题目或知识点" value="{{keyword}}" bindinput="changeKeyword" disabled="{{busy}}" /></view>
+      <view class="selection-commands"><button class="secondary-button compact-command" bindtap="selectAll" disabled="{{busy || loading}}">选择当前结果</button><button class="muted-button compact-command" bindtap="clearSelection" disabled="{{busy}}">清空选择</button></view>
+      <checkbox-group bindchange="selectQuestions">
+        <label class="export-question" wx:for="{{visibleQuestions}}" wx:key="_id"><checkbox value="{{item._id}}" checked="{{item.checked}}" disabled="{{busy || loading}}" color="#1f6feb" /><view class="question-copy"><text class="question-subject">{{item.subjectLabel}}</text><text class="export-question-text">{{item.questionText}}</text></view></label>
+      </checkbox-group>
+      <text wx:if="{{!loading && !visibleQuestions.length}}" class="export-empty">暂无匹配错题</text>
+    </view>
+    <button class="primary-button" bindtap="generate" loading="{{busy}}" disabled="{{busy || loading || uncertain || !selectedCount}}">生成 PDF（{{selectedCount}} 道）</button>
+  </block>
+  <text class="error-text" wx:if="{{error}}">{{error}}</text>
+  <button wx:if="{{!students.length && !loading && error}}" class="secondary-button" bindtap="load">重新加载</button>
+  <view class="export-section" wx:if="{{task || uncertain || busy}}">
+    <view class="section-row"><text class="export-heading">{{task ? task.title : '导出任务'}}</text><text class="task-status">{{task.statusLabel}}</text></view>
+    <text wx:if="{{task}}" class="task-meta">{{task.count}} 道题{{task.result ? ' · ' + task.result.pageCount + ' 页' : ''}}</text>
+    <progress wx:if="{{busy}}" percent="{{progress}}" activeColor="#1f6feb" stroke-width="4" />
+    <button wx:if="{{uncertain && !busy}}" class="secondary-button" bindtap="recoverTask">查询 / 继续生成</button>
+    <button wx:if="{{task.status === 'failed' && !busy}}" class="secondary-button" bindtap="retryTask">重试此任务</button>
+    <button wx:if="{{task.status === 'completed'}}" class="secondary-button" bindtap="openDocument" loading="{{opening}}" disabled="{{opening || busy}}">打开 PDF</button>
+  </view>
+  <view class="export-section" wx:if="{{history.length}}">
+    <text class="export-heading">最近导出</text>
+    <view class="history-row" wx:for="{{history}}" wx:key="_id" bindtap="selectHistory" data-id="{{item._id}}"><view class="history-copy"><text class="history-title">{{item.title}}</text><text class="history-meta">{{item.studentName}} · {{item.templateLabel}} · {{item.count}} 道 · {{item.dateLabel}}</text></view><text class="history-status">{{item.statusLabel}}</text></view>
+  </view>
+  <text wx:if="{{loading}}" class="export-empty">正在加载</text>
+</view>
+<canvas type="2d" id="pdfCanvas" class="pdf-canvas" />

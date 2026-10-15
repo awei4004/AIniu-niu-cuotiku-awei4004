@@ -15,6 +15,9 @@ function createBackend(mode) {
   let adapter = async (source, options) => domain.demoGenerate(source, options);
   let ocrAdapter = async () => ({ provider: 'tencent', text: '23 × 14 =' });
   let ocrCalls = 0;
+  let pdfCalls = 0;
+  let pdfRenderer = async () => ({ bytes: Buffer.from('%PDF-1.7 mock'), pageCount: 1 });
+  const uploads = [];
   let clockOffset = 0;
   let transactionQueue = Promise.resolve();
   const cloudFiles = new Map();
@@ -103,12 +106,22 @@ function createBackend(mode) {
       if (!cloudFiles.has(fileID)) throw new Error('Missing cloud file');
       return { fileContent: Buffer.from(cloudFiles.get(fileID)) };
     },
+    async uploadFile({ cloudPath, fileContent }) {
+      const fileID = `cloud://test.bucket/${cloudPath}`;
+      uploads.push(fileID);
+      cloudFiles.set(fileID, Buffer.from(fileContent));
+      return { fileID };
+    },
+    async deleteFile({ fileList }) {
+      fileList.forEach((id) => cloudFiles.delete(id));
+      return { fileList: fileList.map((fileID) => ({ fileID, status: 0 })) };
+    },
     async getTempFileURL({ fileList }) {
       return { fileList: fileList.map((fileID) => ({ fileID, status: cloudFiles.has(fileID) ? 0 : -1,
         tempFileURL: `https://files.example.test/${fileID.split('/').slice(3).join('/')}` })) };
     }
   };
-  const context = vm.createContext({ Date: Clock, Math, Promise, console: { error() {} },
+  const context = vm.createContext({ Date: Clock, Math, Promise, Buffer, console: { error() {} },
     getApp: () => ({ globalData: { cloudEnabled: false } }),
     wx: { getStorageSync: (key) => clone(memory.get(key)), setStorageSync: (key, value) => memory.set(key, clone(value)) }
   });
@@ -122,6 +135,7 @@ function createBackend(mode) {
       if (id === 'wx-server-sdk') return cloud;
       if (id === './ai-adapter') return { provider: 'demo', generate: (...args) => adapter(...args) };
       if (id === './ocr-adapter') return { provider: () => 'tencent', recognize: (...args) => { ocrCalls += 1; return ocrAdapter(...args); } };
+      if (id === './pdf-renderer') return { render: (...args) => { pdfCalls += 1; return pdfRenderer(...args); } };
       if (!id.startsWith('.')) return require(id);
       return load(path.resolve(path.dirname(file), `${id}.js`));
     };
@@ -147,7 +161,11 @@ function createBackend(mode) {
     setAdapter(value) { adapter = value; },
     setOcrAdapter(value) { ocrAdapter = value; },
     ocrCalls: () => ocrCalls,
+    setPdfRenderer(value) { pdfRenderer = value; },
+    pdfCalls: () => pdfCalls,
+    uploads: () => uploads.slice(),
     putCloudFile(id, bytes) { cloudFiles.set(id, Buffer.from(bytes)); },
+    getCloudFile(id) { return cloudFiles.has(id) ? Buffer.from(cloudFiles.get(id)) : undefined; },
     advanceClock(value) { clockOffset += value; },
     failWrites() { setFailure = 2; }
   };

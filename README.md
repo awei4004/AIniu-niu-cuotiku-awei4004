@@ -1,8 +1,8 @@
 # 小学生语文数学错题知识库
 
-这是一个原生微信小程序项目，当前已实现阶段一至阶段四的演示闭环：学生管理、手动错题库、同类题生成确认、在线练习、复习记录和图片 OCR 录入。
+这是一个原生微信小程序项目，当前已实现阶段一至阶段五的演示闭环：学生管理、手动错题库、同类题生成确认、在线练习、复习记录、图片 OCR 录入和 A4 PDF 资料导出。
 
-阶段三当前使用明确标记的模板出题适配器，尚未调用真实 AI 模型。阶段四本地模式使用明确标记的演示识别；云端已预留腾讯云 OCR 适配器，只有配置云函数环境变量后才调用真实 OCR。
+阶段三当前使用明确标记的模板出题适配器，尚未调用真实 AI 模型。阶段四本地模式使用明确标记的演示识别；云端已预留腾讯云 OCR 适配器，只有配置云函数环境变量后才调用真实 OCR。阶段五支持练习版和解析版 PDF：云端 PDF 使用可选中文本的 Noto Sans SC TrueType 字体，本地演示使用小程序画布生成页面图像后封装为 PDF。
 
 ## 用微信开发者工具打开
 
@@ -63,10 +63,15 @@ miniprogram/                        小程序前端
   services/practice-domain.js       共用出题、JSON 校验、快照和判题规则
   services/image-domain.js          图片大小、格式、OCR 结果和原图绑定规则
   services/image-client.js          选图、上传进度和 OCR 页面调用
+  services/export-client.js         PDF 渲染、断点恢复和打开文档
+  services/pdf-local.js             本地 A4 PDF 生成
   utils/storage.js                  本地演示存储
-cloudfunctions/api/                 学生、错题、生成题和练习云函数
+cloudfunctions/api/                 学生、错题、生成题、练习和 PDF 导出云函数
   image-service.js                   文件登记、归属检查、OCR 任务和临时访问地址
   ocr-adapter.js                    腾讯云 OCR 服务端签名适配器
+  export-service.js                 导出任务、快照、重试和云文件访问
+  pdf-renderer.js                   云端可选中文本 PDF 生成
+  assets/NotoSansSC-VF.ttf          云端中文字体
 tests/student-api.test.js           学生和错题数据生命周期测试
 tests/practice-api.test.js          本地/云函数模拟接口测试
 tests/practice-pages.test.js        页面事件和闭环调用测试
@@ -74,6 +79,7 @@ tests/image-api.test.js              图片/OCR 本地与云函数模拟测试
 tests/ocr-adapter.test.js            OCR 签名和服务端输出边界测试
 scripts/sync-domain.js              同步云函数规则模块
 scripts/check.js                    语法与微信模板编译检查
+scripts/verify-pdf.js               生成代表性 PDF 并校验页数和 A4 尺寸
 ```
 
 ## 本地验证
@@ -83,6 +89,7 @@ scripts/check.js                    语法与微信模板编译检查
 ```powershell
 npm.cmd test
 npm.cmd run check
+npm.cmd run verify:pdf
 ```
 
 `npm.cmd test` 验证学生、错题、阶段三闭环和阶段四图片/OCR流程；云函数测试使用模拟数据库，页面测试使用模拟微信运行环境。`npm.cmd run check` 使用 Node 和微信开发者工具自带编译器检查 JavaScript、WXML 和 WXSS。测试和检查前会自动同步云函数规则模块。

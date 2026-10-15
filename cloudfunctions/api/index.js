@@ -5,12 +5,15 @@ const crypto = require('crypto');
 const imageRules = require('./image-domain');
 const ocrAdapter = require('./ocr-adapter');
 const { createService } = require('./image-service');
+const { createService: createExportService } = require('./export-service');
+const pdfRenderer = require('./pdf-renderer');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database({ throwOnNotFound: false });
 const _ = db.command;
 const images = createService({ cloud, db, adapter: ocrAdapter });
+const exportsService = createExportService({ cloud, db, renderer: pdfRenderer });
 
 exports.main = async (event = {}) => {
   const traceId = event.requestId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -30,6 +33,7 @@ exports.main = async (event = {}) => {
 };
 
 async function dispatch(action, data, user) {
+  if (exportsService.actions.includes(action) || action === 'task.get' && data.type === 'export') return exportsService.call(action, data, user);
   if (images.actions.includes(action)) return images.call(action, data, user);
   switch (action) {
     case 'user.bootstrap':
@@ -520,6 +524,6 @@ function publicMessage(error) {
   if (error && error.code === 'HAS_RELATED_DATA') return error.message;
   if (error && ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHENTICATED', 'INVALID_STATUS',
     'SOURCE_CHANGED', 'QUESTION_CHANGED', 'UNSUPPORTED_GENERATION', 'INVALID_AI_OUTPUT',
-    'FILE_INVALID', 'CONFLICT'].includes(error.code)) return error.message;
+    'FILE_INVALID', 'CONFLICT', 'EXPORT_LIMIT', 'PDF_FONT_MISSING'].includes(error.code)) return error.message;
   return '服务暂时不可用，请稍后重试';
 }
