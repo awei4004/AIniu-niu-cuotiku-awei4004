@@ -3,6 +3,7 @@ const domain = require('./practice-domain');
 const images = require('./image-local');
 const imageRules = require('./image-domain');
 const exportsService = require('./export-local');
+const localAi = require('./generation-local-ai');
 
 function getAppState() {
   try {
@@ -37,6 +38,10 @@ function call(action, data = {}) {
 
 function localCall(action, data) {
   const user = storage.ensureUser();
+  if (action === 'generation.config' && localAi.enabled()) return localAi.status();
+  if (action === 'generation.create' && localAi.enabled()) return localAi.create(user, data);
+  if (action === 'task.get' && data.type === 'generation'
+    && (localAi.findTask(user, data) || {}).backend === 'local-http') return localAi.getTask(user, data);
   if (action === 'generation.config') return { provider: 'demo', ready: true };
   if (action === 'task.get' && data.type === 'generation') {
     const task = storage.getTasks().find((item) => item.ownerId === user._id && item.type === 'generation'

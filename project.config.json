@@ -33,7 +33,7 @@
   },
   "compileType": "miniprogram",
   "libVersion": "3.7.2",
-  "appid": "touristappid",
+  "appid": "wx70bd4e43e9c3552e",
   "projectname": "错题知识库",
   "miniprogramRoot": "miniprogram/",
   "cloudfunctionRoot": "cloudfunctions/",

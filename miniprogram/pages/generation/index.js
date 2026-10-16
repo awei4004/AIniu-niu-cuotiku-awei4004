@@ -2,7 +2,7 @@ const api = require('../../services/api');
 const storage = require('../../utils/storage');
 const difficulties = ['easy', 'normal', 'hard'];
 const terminalCodes = ['VALIDATION_ERROR', 'NOT_FOUND', 'CONFLICT', 'SOURCE_CHANGED', 'INVALID_AI_OUTPUT',
-  'UNSUPPORTED_GENERATION', 'AI_NOT_CONFIGURED', 'AI_AUTH_FAILED', 'AI_RATE_LIMITED', 'AI_CONFIG_ERROR', 'AI_PROVIDER_FAILED', 'AI_TIMEOUT'];
+  'UNSUPPORTED_GENERATION', 'AI_NOT_CONFIGURED', 'AI_AUTH_FAILED', 'AI_RATE_LIMITED', 'AI_CONFIG_ERROR', 'AI_PROVIDER_FAILED', 'AI_TIMEOUT', 'AI_TASK_INTERRUPTED'];
 
 Page({
   data: {
@@ -22,17 +22,19 @@ Page({
   },
 
   loadData() {
-    this.setData({ loading: true, error: '' });
+    this.setData({ loading: true, error: '', aiReady: false });
     return Promise.all([
       api.call('question.detail', { questionId: this.data.sourceQuestionId }).catch((error) => {
         this.setData({ error: error.message });
         return null;
       }),
       api.call('generation.list', { sourceQuestionId: this.data.sourceQuestionId }),
-      api.call('generation.config')
+      api.call('generation.config').catch((error) => ({ ready: false, provider: 'unavailable', error: error.message }))
     ]).then(([source, questions, config]) => {
       this.setData({ source, questions, loading: false, aiReady: config.ready,
-        providerLabel: config.provider === 'demo' ? '演示出题' : config.ready ? 'AI 出题' : 'AI 待配置' });
+        providerLabel: config.provider === 'demo' ? '演示出题' : config.ready ? 'AI 出题'
+          : config.provider === 'unavailable' ? 'AI 未连接' : 'AI 待配置' });
+      if (config.error) this.setData({ error: config.error });
     }).catch((error) => this.setData({ loading: false, error: error.message }));
   },
 

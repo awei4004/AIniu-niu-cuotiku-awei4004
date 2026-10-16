@@ -35,6 +35,31 @@ function page(name, api, memory = new Map()) {
 const event = (dataset) => ({ currentTarget: { dataset } });
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+test('generation page retains candidates and can retry when local AI is disconnected', async () => {
+  const backend = createBackend('local');
+  const student = await backend.call('student.create', { name: '连接测试学生', grade: 3 });
+  const source = await backend.call('question.create', { studentId: student._id, subject: 'math', questionText: '23 + 14 =' });
+  await backend.call('generation.create', { sourceQuestionId: source._id });
+  let connected = false;
+  const instance = page('generation', { call(action, data) {
+    if (action === 'generation.config') return connected ? Promise.resolve({ provider: 'openai-compatible', ready: true })
+      : Promise.reject(new Error('本地服务未启动'));
+    return backend.call(action, data);
+  } });
+  instance.onLoad({ sourceQuestionId: source._id });
+  await settle();
+  assert.equal(instance.data.providerLabel, 'AI 未连接');
+  assert.equal(instance.data.aiReady, false);
+  assert.equal(instance.data.source._id, source._id);
+  assert.equal(instance.data.questions.length, 1);
+  assert.equal(instance.data.error, '本地服务未启动');
+  connected = true;
+  await instance.loadData();
+  assert.equal(instance.data.providerLabel, 'AI 出题');
+  assert.equal(instance.data.aiReady, true);
+  assert.equal(instance.data.error, '');
+});
+
 test('generation page recovers a lost response after reentry without creating a second batch', async () => {
   const backend = createBackend('local');
   const student = await backend.call('student.create', { name: '恢复学生', grade: 3 });

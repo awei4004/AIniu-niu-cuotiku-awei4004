@@ -6,7 +6,7 @@ const root = path.resolve(__dirname, '../..');
 const domain = require('../../miniprogram/services/practice-domain');
 const clone = (value) => value === undefined ? undefined : structuredClone(value);
 
-function createBackend(mode) {
+function createBackend(mode, options = {}) {
   const memory = new Map();
   const tables = new Map();
   let openid = 'alice';
@@ -125,7 +125,8 @@ function createBackend(mode) {
   };
   const context = vm.createContext({ Date: Clock, Math, Promise, Buffer, console: { error() {} },
     getApp: () => ({ globalData: { cloudEnabled: false } }),
-    wx: { getStorageSync: (key) => clone(memory.get(key)), setStorageSync: (key, value) => memory.set(key, clone(value)) }
+    wx: { getStorageSync: (key) => clone(memory.get(key)), setStorageSync: (key, value) => memory.set(key, clone(value)),
+      request: options.request }
   });
   const cache = new Map();
   function load(file) {
@@ -134,6 +135,7 @@ function createBackend(mode) {
     const module = { exports: {} };
     cache.set(file, module);
     const requireFile = (id) => {
+      if (id.endsWith('/config/env')) return { cloudEnvId: '', localAiBaseUrl: options.localAiBaseUrl || '' };
       if (id === 'wx-server-sdk') return cloud;
       if (id === './ai-adapter') return { provider: () => aiProvider, status: () => ({ provider: aiProvider, ready: true }),
         generate: (...args) => { aiCalls += 1; return adapter(...args); } };

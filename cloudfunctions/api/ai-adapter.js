@@ -26,9 +26,9 @@ function configuration(env) {
 }
 
 function providerFailure(status) {
-  if (status === 401 || status === 403) return error('AI_AUTH_FAILED', 'AI 服务认证失败，请检查云端密钥和模型权限');
+  if (status === 401 || status === 403) return error('AI_AUTH_FAILED', 'AI 服务认证失败，请检查密钥和模型权限');
   if (status === 429) return error('AI_RATE_LIMITED', 'AI 服务额度不足或请求过于频繁，请检查账户后稍后重试');
-  if (status === 400 || status === 404 || status === 422) return error('AI_CONFIG_ERROR', 'AI 接口、模型或参数不兼容，请检查云端配置');
+  if (status === 400 || status === 404 || status === 422) return error('AI_CONFIG_ERROR', 'AI 接口、模型或参数不兼容，请检查服务配置');
   return error('AI_PROVIDER_FAILED', 'AI 服务暂时不可用，请稍后重试');
 }
 
@@ -106,7 +106,7 @@ function createAdapter({ env = process.env, send = createTransport() } = {}) {
     },
     async generate(source, options) {
       const config = configuration(env);
-      if (!config.ready) throw error('AI_NOT_CONFIGURED', '云端尚未正确配置 AI，请设置服务地址、模型和密钥');
+      if (!config.ready) throw error('AI_NOT_CONFIGURED', '尚未正确配置 AI，请设置服务地址、模型和密钥');
       if (config.provider === 'demo') return domain.demoGenerate(source, options);
       const payload = { model: config.model, messages: messages(source, options), stream: false,
         [config.tokenParameter]: config.maxTokens };

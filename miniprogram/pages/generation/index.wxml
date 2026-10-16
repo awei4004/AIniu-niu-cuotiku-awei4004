@@ -32,7 +32,7 @@
     </view>
   </view>
   <text class="error-text" wx:if="{{error}}">{{error}}</text>
-  <button wx:if="{{error && !source}}" bindtap="loadData" class="secondary-button">重试</button>
+  <button wx:if="{{error && !uncertain && !busy}}" bindtap="loadData" class="secondary-button">重试</button>
   <view class="editor-overlay" wx:if="{{editor}}">
     <scroll-view class="editor-panel" scroll-y>
       <view class="editor-inner">

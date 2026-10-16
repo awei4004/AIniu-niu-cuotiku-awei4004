@@ -6,3 +6,5 @@ tmp/
 output/pdf/
 miniprogram/services/student-domain.js
 cloudfunctions/api/student-domain.js
+local-server/config.local.json
+local-server/data/

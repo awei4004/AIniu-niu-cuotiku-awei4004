@@ -1,0 +1,11 @@
+{
+  "AI_PROVIDER": "openai-compatible",
+  "AI_BASE_URL": "",
+  "AI_MODEL": "",
+  "AI_API_KEY": "",
+  "AI_TIMEOUT_MS": "45000",
+  "AI_MAX_TOKENS": "4096",
+  "AI_TOKEN_PARAMETER": "max_tokens",
+  "AI_RESPONSE_FORMAT": "json_object",
+  "LOCAL_AI_PORT": "8787"
+}

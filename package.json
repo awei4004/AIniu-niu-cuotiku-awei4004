@@ -9,6 +9,7 @@
     "check": "node scripts/check.js",
     "verify:pdf": "node scripts/verify-pdf.js",
     "verify:ai": "node scripts/verify-ai.js",
+    "dev:ai": "node local-server/index.js",
     "test": "node --test tests/*.test.js"
   },
   "engines": {

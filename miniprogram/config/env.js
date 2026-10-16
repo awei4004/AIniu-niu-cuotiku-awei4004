@@ -1,4 +1,5 @@
-// 配置真实云开发环境后，将空字符串替换为云环境 ID。
+// 本地 AI 使用电脑服务；两个值都为空时使用演示模式。云环境配置优先。
 module.exports = {
-  cloudEnvId: ''
+  cloudEnvId: '',
+  localAiBaseUrl: 'http://127.0.0.1:8787'
 };
